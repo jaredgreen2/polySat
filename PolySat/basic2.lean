@@ -21,23 +21,11 @@ inductive normalizable α (pred : α -> Prop)
   | And : (normalizable α pred) -> (normalizable α pred) -> normalizable α pred
   | Or : (normalizable α pred) -> (normalizable α pred) -> normalizable α pred
   | Not : normalizable α pred -> normalizable α pred
+deriving DecidableEq
 
 namespace normalizable
 
 --need decidable equality of normalizable. it doesn't impact the theorems, but if the code is to run, we need it.
-def eq (n : normalizable α pred) (m : normalizable α pred) : Bool :=
-  match n, m with
-  | atom a , atom b =>  a == b
-  | And a b, And c d => and (eq a c) (eq b d)
-  | Or a b , Or c d => and (eq a c) (eq b d)
-  | Not a, Not b => eq a b
-  | _, _ => false
-
-instance decEqNormalizable : DecidableEq (normalizable α pred) :=
-  by
-  intro
-  intro
-  sorry
 
 def toProp (n : normalizable α pred) : Prop :=
   match n with
@@ -128,8 +116,8 @@ theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   by
   sorry
 
-def compatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Prop :=
-  ∀ x y: Bool × normalizable α pred, x ∈ s ∧ y ∈ t -> x.snd == y.snd -> x.fst == y.fst
+def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
+  s.all (fun x => t.all (fun y =>  x.snd == y.snd -> x.fst == y.fst))
 
 theorem rule1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
@@ -137,7 +125,7 @@ theorem rule1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ v : Bool × normalizable α pred, ¬(v ∈ s) ->
                 (∃ h : List (List (Bool × normalizable α pred)), h ∈ n ->
                 ∀ t : List (Bool × normalizable α pred), t ∈ h ->
-                compatible t s -> v ∈ t) ->
+                bcompatible t s -> v ∈ t) ->
                 nToProp n -> sToProp s -> wToProp v :=
   by
   sorry
@@ -147,7 +135,7 @@ theorem rule2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                 (∃ h : List (List (Bool × normalizable α pred)), h ∈ n ∧
                 ∀ t : List (Bool × normalizable α pred), t ∈ h ∧
-                ¬(compatible s t)) ->
+                ¬(bcompatible s t)) ->
                 nToProp n -> ¬(sToProp s) :=
   by
   sorry
@@ -167,7 +155,7 @@ theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
              ∃ h i : List (List (Bool × normalizable α pred)),
              h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
              ∀ u : List (Bool × normalizable α pred), u ∈ i ->
-             (compatible t u) -> w ∈ u :=
+             (bcompatible t u) -> w ∈ u :=
   by
   sorry
 
@@ -179,7 +167,7 @@ theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
              ∃ h i : List (List (Bool × normalizable α pred)),h ∈ n ∧
              (nToProp n -> (gToProp h <-> gToProp i)) ∧
              ∀ t : List (Bool × normalizable α pred), t ∈ i ->
-             ¬(compatible a t) :=
+             ¬(bcompatible a t) :=
   by
   sorry
 
@@ -208,10 +196,10 @@ def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : Li
   (fun t => s.foldl
   (fun p q => (p.filter
   (fun u => q.any
-  (fun v => compatible v u))).map
+  (fun v => bcompatible v u))).map
   (fun w => w.append
   ((interl (q.filter
-  (fun v => compatible v w))).filter
+  (fun v => bcompatible v w))).filter
   (fun x => ¬(x ∈ w))))) t));
   if  order f > a then s else clean f a
   termination_by n
