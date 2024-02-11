@@ -12,149 +12,78 @@ import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
 open Classical
 
-universe u
---there are three kinds of issues in here so far: structural recursion, decidable equality, and sorry's
-inductive normalizable (α : Type u) [DecidableEq α] (pred : α -> Prop)
+--basic rewritten to not build on variadic gates. apparently taking a list messes up structural recursion.
+
+variable {α : Type}[h : DecidableEq α]
+inductive normalizable α (pred : α -> Prop)
   where
   | atom : α -> (normalizable α pred)
-  | And : List (normalizable α pred) -> normalizable α pred
-  | Or : List (normalizable α pred) -> normalizable α pred
+  | And : (normalizable α pred) -> (normalizable α pred) -> normalizable α pred
+  | Or : (normalizable α pred) -> (normalizable α pred) -> normalizable α pred
   | Not : normalizable α pred -> normalizable α pred
 
 namespace normalizable
 
+--need decidable equality of normalizable. it doesn't impact the theorems, but if the code is to run, we need it.
+def eq (n : normalizable α pred) (m : normalizable α pred) : Bool :=
+  match n, m with
+  | atom a , atom b =>  a == b
+  | And a b, And c d => and (eq a c) (eq b d)
+  | Or a b , Or c d => and (eq a c) (eq b d)
+  | Not a, Not b => eq a b
+  | _, _ => false
 
-mutual
---make this not mutually recursive. that will solve 9 issues
-def decEqListNormalizable : DecidableEq (List (normalizable α pred)) := fun
-  | [],[] => .isTrue rfl
-  | hd₁::tl₁, hd₂::tl₂ =>
-      let inst₁ := decEqNormalizable hd₁ hd₂
-      let inst₂ := decEqListNormalizable tl₁ tl₂
-      if h₁ : hd₁ = hd₂ then
-          if h₂ : tl₁ = tl₂ then .isTrue (by subst h₁ h₂; rfl)
-          else .isFalse (by intro n; injection n; apply h₂; assumption)
-      else
-        .isFalse (by intro n; injection n; apply h₁; assumption)
-  | [],_::_ | _::_,[] => .isFalse (by intro h; injection h)
-
-
-def decEqNormalizable : DecidableEq (normalizable α pred) := fun
-  | atom a, atom b =>
-    if h : a = b then
-      .isTrue (by subst h; rfl)
-    else
-      .isFalse  (by intro n; injection n; apply h; assumption)
-  | And a, And b | Or a, Or b =>
-    let inst := decEqListNormalizable a b
-    if h : a = b then
-      .isTrue (by subst h; rfl)
-    else
-      .isFalse  (by intro n; injection n; apply h; assumption)
-  | Not a, Not b =>
-    let inst := decEqNormalizable a b
-    if h : a = b then
-      .isTrue (by subst h; rfl)
-    else
-      .isFalse  (by intro n; injection n; apply h; assumption)
-  | Not _, Or _  |Not _, And _ | Not _, atom _
-  | Or _, Not _  | Or _, And _ | Or _, atom _
-  | And _, Not _ | And _, Or _ | And _, atom _
-  | atom _, Not _| atom _, And _| atom _, Or _ =>
-    .isFalse (by intro h; injection h)
-
-end
+instance decEqNormalizable : DecidableEq (normalizable α pred) :=
+  by
+  intro
+  intro
+  sorry
 
 def toProp (n : normalizable α pred) : Prop :=
   match n with
   | atom a => pred a
-  | And l => (l.attach.map (fun x => toProp x.val)).foldr (· ∧ ·) True
-  | Or l => (l.attach.map (fun x => toProp x.val)).foldr (· ∨ ·) False
-  | Not n => ¬(toProp n)
-termination_by n
-  decreasing_by
-  all_goals
-    simp_wf
-    try have := Subtype.property ‹_›
-  decreasing_trivial
-  simp_wf
-  decreasing_trivial
+  | And a b =>  toProp a ∧ toProp b
+  | Or a b => (toProp a) ∨ toProp b
+  | Not i => ¬(toProp i)
 
-def subnormalizeN (n : normalizable α pred) [DecidableEq (normalizable α pred)] : List (normalizable α pred) :=
+--no, these functions absolutely should not be expecting types
+def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable α pred))) :=
   match n with
-  | Or l => ((Or (And (Not n :: (l.attach.map fun x => Not x.val))
-    :: (l.map (fun x => And [n,x]) )))
-    :: ((l.attach.map fun ⟨x,_⟩ => subnormalizeN x).foldr (fun x y => (x.append y).dedup) []))
-  | And l => ((Or (And (n :: l)
-    :: (l.attach.map (fun x => And [Not n, Not x]))))
-    :: ((l.attach.map fun ⟨x,_⟩ => subnormalizeN x).foldr (fun x y => (x.append y).dedup) []))
-  | Not i => (Or [And [n, Not i], And [Not n, i]]) :: (subnormalizeN i)
-  | atom a => [Or [And [n], And [Not n]]]
-termination_by n
-  decreasing_by
-  all_goals
-    simp_wf
-    --try have Subtype.property
-    decreasing_trivial
-  try have Subtype.property
-  simp_wf
-  sorry
+  | Or a b => [[a,n],[b,n],[Not a,Not b, Not n]] :: (List.append (subnormalize a) (subnormalize b))
+  | And a b => [[a,b,n],[Not a,Not n],[Not b,Not n]] :: (List.append (subnormalize a) (subnormalize b))
+  | Not i => [[n,Not i],[Not n, i]] :: (subnormalize i)
+  | atom _ => [[[n],[Not n]]]
 
-def normalizeN (n : normalizable α pred) [DecidableEq α] : normalizable α pred :=
-  And ((Or [And [n]]) :: subnormalizeN n)
-  --termination_by
-
-def normalizeP (n : normalizable α pred) : Prop :=
-  toProp (normalizeN n)
-
-theorem normalization : ∀ n : normalizable α pred, toProp n <-> normalizeP n :=
-  by
-  sorry
+def normalize :  normalizable α pred -> List (List (List (normalizable α pred))) := fun o =>
+  [[o]] :: (subnormalize o)
 
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
   | Not (Not i) => nStrip i
-  | Not i => (false, i)
-  | i => (true, i)
+  | Not i => (false,i)
+  |i => (true,i)
 
-def strip (n : normalizable α pred) [DecidableEq α] : List (Bool × normalizable α pred) :=
-  match n with
-  | atom a => [(true,n)]
-  | Or l => l.map nStrip
-  | And l => l.map nStrip
-  | i => [nStrip i]
+def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
+  n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
 
-def normalizel (n : normalizable α pred) [DecidableEq α]: List (List (List (Bool × normalizable α pred))) :=
-  ((strip (normalizeN n)).map
-  (fun x => strip x.snd)).map
-  (fun x => x.map
-  (fun y => strip y.snd))
-
-def nToProp (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
-  toProp (And (n.map
-  (fun x => Or (x.map
-  (fun y => And (y.map
-  (fun z => if z.fst
-    then z.snd
-    else Not z.snd)))))))
-
-def gToProp (g : List (List (Bool × normalizable α pred))) : Prop :=
-  toProp (Or (g.map
-  (fun x => And (x.map
-  (fun y => if y.fst
-    then y.snd
-    else Not y.snd)))))
-
-def sToProp (s : List (Bool × normalizable α pred)) : Prop :=
-  toProp (And (s.map
-  (fun x => if x.fst
-    then x.snd
-    else Not x.snd)))
+def normalizel (n : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
+  booleanize (normalize n)
 
 def wToProp (w : Bool × normalizable α pred) : Prop :=
-  toProp (if w.fst
-    then w.snd
-    else Not w.snd)
+  if w.fst then toProp w.snd else ¬(toProp w.snd)
+
+def sToProp (s : List (Bool × normalizable α pred)) : Prop :=
+  s.all (fun x => wToProp x)
+
+def gToProp (g : List (List (Bool × normalizable α pred))) : Prop :=
+  g.any (fun x => sToProp x)
+
+def nToProp (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
+  n.all (fun x => gToProp x)
+
+theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel n) :=
+  by
+  sorry
 
 def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
@@ -162,7 +91,7 @@ def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   (∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
   w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup
 
-def makeCoherent (n : List (List (List (Bool × normalizable α pred)))) [DecidableEq (normalizable α pred)]: List (List (List (Bool × normalizable α pred))) :=
+def makeCoherent (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map
   (fun x => (x.filter
   (fun y => y.Pairwise
@@ -170,10 +99,6 @@ def makeCoherent (n : List (List (List (Bool × normalizable α pred)))) [Decida
   (fun y => y.dedup))
 
 theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), coherent (makeCoherent n) :=
-  by
-  sorry
-
-theorem normal : ∀ n : normalizable α pred, nToProp (makeCoherent (normalizel n)) <-> normalizeP n :=
   by
   sorry
 
@@ -186,6 +111,7 @@ def nfNegate (n : List (List (List (Bool × normalizable α pred)))) : List (Lis
 theorem interesting : ∀ n : normalizable α pred, ¬(toProp n) <-> nToProp (nfNegate (normalizel n)) :=
   by
   sorry
+
 
 theorem property1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
@@ -257,7 +183,7 @@ theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   by
   sorry
 
-def order (n : List (List (List (Bool × normalizable α pred))))  [DecidableEq (normalizable α pred)] : Nat :=
+def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   let count : Nat := Nat.succ (((n.map
   (fun g => (g.map
   (fun s => s.map
@@ -272,9 +198,13 @@ def interl (l : List (List a)) [DecidableEq a] : List a :=
   | [a] => a
   | (a :: as) => List.inter a (interl as)
 
-def clean (r : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
+--all the messages after this are due to the lack of termination proof here. once one is here they will go away
+def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : List (List (List (Bool × normalizable α pred))) :=
   let s := makeCoherent r;
-  let f := (s.map
+  match n with
+  | 0 => s
+  | Nat.succ a => let f := (if [] ∈ s then s else
+    s.map
   (fun t => s.foldl
   (fun p q => (p.filter
   (fun u => q.any
@@ -283,43 +213,85 @@ def clean (r : List (List (List (Bool × normalizable α pred)))) : List (List (
   ((interl (q.filter
   (fun v => compatible v w))).filter
   (fun x => ¬(x ∈ w))))) t));
-  if [] ∈ s ∨ order f >= order s then s else clean f
+  if  order f > a then s else clean f a
+  termination_by n
+  decreasing_by
+  simp_wf
 
-def solutions (o : normalizable α pred) [DecidableEq α] : List (List (List (Bool × normalizable α pred))) :=
-  clean (normalizel o)
+theorem leneqclean : ∀ n : List (List (List (Bool × normalizable α pred))), (clean n (order n)).length = n.length :=
+  by
+  sorry
 
-def satisfiable? (o : normalizable α pred) [DecidableEq α] : Bool :=
-  ¬ ([] ∈ solutions o)
+def solutions (o : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
+  clean (normalizel o) (order (normalizel o))
+
+def allnonempty (m : List (List a)) : Bool :=
+  match m with
+  | [] => false
+  | ([] :: _) => false
+  | (_ :: as) => allnonempty as
+
+def satisfiable? (o : normalizable α pred)  : Bool :=
+  match solutions o with
+  | [] => false
+  | ([] :: _) => false
+  | _ :: as => allnonempty as
+
+def lsatisfiable? (n : List (List (List (Bool × normalizable α pred)))) : Bool :=
+  match clean n (order n) with
+  | [] => false
+  | ([] :: _) => false
+  | _ :: as => allnonempty as
 
 def chose (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   match n with
   | [] => []
   | [[]] => []
   | ([] :: as) => []
-  | (b :: _) :: as => let s := clean ([b] :: as); if [] ∈ s then [] else ([b] :: chose s.tail)
+  | (b :: _) :: as => let s := clean ([b] :: as) (order ([b] :: as)); if allnonempty s then ([b] :: chose s.tail)  else []
+  termination_by sizeOf n
+  decreasing_by
+  simp_wf
+  sorry
 
-def getS (o : List (List (List (Bool × normalizable α pred)))) [DecidableEq (normalizable α pred)]: List (Bool × normalizable α pred) :=
+def getS (o : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   match o with
   | [] => []
   | [] :: _ => []
   | (b :: _) :: bs => (b.append (getS bs)).dedup
 
-def solveWhole (o : normalizable α pred) [DecidableEq (normalizable α pred)]: List (Bool × normalizable α pred) :=
+def solveWhole (o : normalizable α pred) : List (Bool × normalizable α pred) :=
   getS (chose (solutions o))
 
+def lsolvewhole (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+  getS (chose (clean n (order n)))
+
 theorem solveSound : ∀ n : normalizable α pred, satisfiable? n == false -> ¬ toProp n :=
+  by
+  sorry
+
+theorem lsolvesound : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == false -> ¬(nToProp n) :=
   by
   sorry
 
 def atoms (n : normalizable α pred) : List (normalizable α pred) :=
   match n with
   | atom a => [atom a]
-  | Or l => ((l.map atoms).join).dedup
-  | And l => ((l.map atoms).join).dedup
+  | Or a b => (List.append (atoms a) (atoms b)).dedup
+  | And a b => (List.append (atoms a) (atoms b)).dedup
   | Not i => atoms i
 
-def solveAtoms (o : normalizable α pred) [DecidableEq (normalizable α pred)] : List (Bool × normalizable α pred) :=
-   (solveWhole o).filter (fun a => a.snd ∈ atoms o)
+def isAtom (n : normalizable α pred) : Bool :=
+  match n with
+  |atom _ => true
+  | _ => false
+
+def solveAtoms (o : normalizable α pred)  : List (Bool × normalizable α pred) :=
+   (solveWhole o).filter (fun a => isAtom a.snd)
+
+def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+  let s := (lsolvewhole n);
+  s.filter (fun a : Bool × normalizable α pred => isAtom a.snd)
 
 theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
                         ∃ s : List (Bool × normalizable α pred), List.Subset (s.map snd) (atoms n) ∧
@@ -330,3 +302,14 @@ theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
   use (solveAtoms n)
   --take it from here
   sorry
+
+--same thing here
+def lsolvecomplete : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == true ->
+                     ∃ s : List (Bool × normalizable α pred), (∀ w: Bool × normalizable α pred, w ∈ s -> isAtom w.snd)  ∧
+                     sToProp s -> nToProp n :=
+  by
+  sorry
+
+def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred)))) : (List (Bool × normalizable α pred) × List (List (List (Bool × normalizable α pred)))) :=
+  let m := (s.map (fun x => [(!x.fst,x.snd)])) :: n;
+  ((lsolveatoms (m)),m)
