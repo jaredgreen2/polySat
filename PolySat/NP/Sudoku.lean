@@ -49,7 +49,7 @@ def SudokuConstraints n (i : SudokuInstance n) : List (List (List (Bool × norma
 
 partial def solution n (i : SudokuInstance n) : Sudoku n :=
   if lsatisfiable? (sudokuConstrints n i)
-  then (List.range (n^2 - 1)).map
-    (fun x => (List.range (n^2 - 1)).map
+  then (Vector.range (n^2 - 1)).map
+    (fun x => (Vector.range (n^2 - 1)).map
     (fun y => ((lsolveatoms (SudokuConstraints i)).find
     (fun z => z.fst = (x,y))).snd))
