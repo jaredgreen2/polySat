@@ -201,7 +201,7 @@ def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : Li
   ((interl (q.filter
   (fun v => bcompatible v w))).filter
   (fun x => ¬(x ∈ w))))) t));
-  if  order f > a then s else clean f a
+  if  order f >= order s then s else clean f a
   termination_by n
   decreasing_by
   simp_wf
@@ -213,30 +213,18 @@ theorem leneqclean : ∀ n : List (List (List (Bool × normalizable α pred))), 
 def solutions (o : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
   clean (normalizel o) (order (normalizel o))
 
-def allnonempty (m : List (List a)) : Bool :=
-  match m with
-  | [] => false
-  | ([] :: _) => false
-  | (_ :: as) => allnonempty as
-
 def satisfiable? (o : normalizable α pred)  : Bool :=
-  match solutions o with
-  | [] => false
-  | ([] :: _) => false
-  | _ :: as => allnonempty as
+  [] ∉ solutions o
 
 def lsatisfiable? (n : List (List (List (Bool × normalizable α pred)))) : Bool :=
-  match clean n (order n) with
-  | [] => false
-  | ([] :: _) => false
-  | _ :: as => allnonempty as
+  [] ∉ clean n (order n)
 
 def chose (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   match n with
   | [] => []
   | [[]] => []
   | ([] :: as) => []
-  | (b :: _) :: as => let s := clean ([b] :: as) (order ([b] :: as)); if allnonempty s then ([b] :: chose s.tail)  else []
+  | (b :: _) :: as => let s := clean ([b] :: as) (order ([b] :: as)); if [] ∉ s then ([b] :: chose s.tail)  else []
   termination_by sizeOf n
   decreasing_by
   simp_wf
@@ -282,7 +270,7 @@ def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (
   s.filter (fun a : Bool × normalizable α pred => isAtom a.snd)
 
 theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
-                        ∃ s : List (Bool × normalizable α pred), List.Subset (s.map snd) (atoms n) ∧
+                        ∃ s : List (Bool × normalizable α pred), List.Subset (s.map snd) (atoms n) ∧ (s ≠ []) ∧
                         sToProp s -> toProp n :=
   by
   intro n
@@ -293,11 +281,13 @@ theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
 
 --same thing here
 def lsolvecomplete : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == true ->
-                     ∃ s : List (Bool × normalizable α pred), (∀ w: Bool × normalizable α pred, w ∈ s -> isAtom w.snd)  ∧
+                     ∃ s : List (Bool × normalizable α pred),
+                     (∀ w: Bool × normalizable α pred, w ∈ s -> isAtom w.snd)  ∧ (s ≠ []) ∧
                      sToProp s -> nToProp n :=
   by
   sorry
 
-def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred)))) : (List (Bool × normalizable α pred) × List (List (List (Bool × normalizable α pred)))) :=
+def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred))))
+                   : (List (Bool × normalizable α pred)  ×    List (List (List (Bool × normalizable α pred)))) :=
   let m := (s.map (fun x => [(!x.fst,x.snd)])) :: n;
   ((lsolveatoms (m)),m)
