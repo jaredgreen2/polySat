@@ -10,9 +10,10 @@ import Mathlib.Data.List.Lattice
 import Mathlib.Data.List.Lemmas
 import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
+
 open Classical
 
---basic rewritten to not build on variadic gates. apparently taking a list messes up structural recursion.
+
 
 variable {α : Type}[h : DecidableEq α]
 inductive normalizable α (pred : α -> Prop)
@@ -25,8 +26,7 @@ deriving DecidableEq
 
 namespace normalizable
 
---need decidable equality of normalizable. it doesn't impact the theorems, but if the code is to run, we need it.
-
+@[reducible]
 def toProp (n : normalizable α pred) : Prop :=
   match n with
   | atom a => pred a
@@ -34,7 +34,19 @@ def toProp (n : normalizable α pred) : Prop :=
   | Or a b => (toProp a) ∨ toProp b
   | Not i => ¬(toProp i)
 
---no, these functions absolutely should not be expecting types
+@[simp]
+theorem toProp_not : toProp (Not n₁) ↔ ¬ toProp n₁ := Iff.rfl
+
+@[simp]
+theorem toProp_and : toProp (And n₁ n₂) ↔ toProp n₁ ∧ toProp n₂ := Iff.rfl
+
+@[simp]
+theorem toProp_or : toProp (Or n₁ n₂) ↔ toProp n₁ ∨ toProp n₂ := Iff.rfl
+
+@[simp]
+theorem toProp_atom {a : α} : toProp (atom a : normalizable α pred) ↔ pred a := Iff.rfl
+
+
 def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable α pred))) :=
   match n with
   | Or a b => [[a,n],[b,n],[Not a,Not b, Not n]] :: (List.append (subnormalize a) (subnormalize b))
@@ -47,9 +59,8 @@ def normalize :  normalizable α pred -> List (List (List (normalizable α pred)
 
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
-  | Not (Not i) => nStrip i
   | Not i => (false,i)
-  |i => (true,i)
+  | i => (true,i)
 
 def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
@@ -69,9 +80,186 @@ def gToProp (g : List (List (Bool × normalizable α pred))) : Prop :=
 def nToProp (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   n.all (fun x => gToProp x)
 
+def fToProp (n : List (List (List (normalizable α pred)))) : Prop :=
+  n.all (fun x => x.any (fun y => y.all (fun z => toProp z)))
+
+theorem nStrip_equiv : ∀ n : normalizable α pred, toProp n <-> wToProp (nStrip n) :=
+  by
+  intro n
+  unfold nStrip
+  induction n
+  simp
+  unfold wToProp
+  simp
+  simp
+  unfold wToProp
+  simp
+  unfold wToProp
+  simp
+  simp
+  unfold wToProp
+  simp
+
+theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fToProp n <-> nToProp (booleanize n) :=
+  by
+  intro n
+  unfold nToProp
+  simp
+  unfold fToProp
+  simp
+  unfold booleanize
+  simp
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  simp [nStrip_equiv]
+
+  theorem andGateTaut :  (a ∧ b ∧ (a ∧ b)) ∨ (¬ a ∧ ¬(a ∧ b)) ∨ (¬ b ∧ ¬(a ∧ b)) :=
+  by
+  cases Classical.em a
+  cases Classical.em b
+  left
+  constructor
+  assumption
+  constructor
+  assumption
+  constructor
+  assumption
+  assumption
+  right
+  right
+  constructor
+  assumption
+  push_neg
+  intro
+  assumption
+  right
+  left
+  constructor
+  assumption
+  rw [and_comm]
+  push_neg
+  intro
+  assumption
+
+theorem orGateTaut : (a ∧ (a ∨ b)) ∨ (b ∧ (a ∨ b)) ∨ ((¬ a) ∧ (¬b) ∧ ¬(a ∨ b)) :=
+  by
+  cases Classical.em a
+  left
+  constructor
+  assumption
+  left
+  assumption
+  right
+  cases Classical.em b
+  left
+  constructor
+  assumption
+  right
+  assumption
+  right
+  constructor
+  assumption
+  constructor
+  assumption
+  push_neg
+  constructor
+  assumption
+  assumption
+
+theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
+  by
+  simp
+  constructor
+  intro ha
+  constructor
+  intro b
+  intro hb
+  apply ha
+  left
+  exact hb
+  intro c
+  intro hc
+  apply ha
+  right
+  exact hc
+  intro ha
+  intro b
+  intro hb
+  cases hb
+  apply ha.left
+  assumption
+  apply ha.right
+  assumption
+
+theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
+  by
+  intro n
+  induction' n with a b c d e f g i j k l
+  unfold subnormalize
+  unfold fToProp
+  simp
+  unfold toProp
+  apply Classical.em
+  unfold subnormalize
+  simp
+  unfold fToProp
+  rw [List.all_cons]
+  simp only [List.any_cons, List.all_cons, List.all_nil, Bool.and_true, List.any_nil,
+    Bool.or_false, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
+    List.mem_append, List.any_eq_true]
+  constructor
+  rw [toProp_not]
+  rw [toProp_and]
+  rw [toProp_not]
+  rw [toProp_and]
+  rw [toProp_not]
+  exact andGateTaut
+  rw [all_and]
+  constructor
+  assumption
+  assumption
+  unfold fToProp
+  unfold subnormalize
+  rw [List.all_cons]
+  simp only [List.any_cons, List.all_cons, toProp_or, List.all_nil, Bool.and_true, toProp_not,
+    List.any_nil, Bool.or_false, List.append_eq, Bool.and_eq_true, Bool.or_eq_true,
+    decide_eq_true_eq, List.mem_append, List.any_eq_true]
+  constructor
+  rw [toProp_not]
+  rw [toProp_or]
+  exact orGateTaut
+  rw [all_and]
+  constructor
+  assumption
+  assumption
+  unfold fToProp
+  unfold subnormalize
+  rw [List.all_cons]
+  simp only [List.any_cons, List.all_cons, toProp_not, List.all_nil, Bool.and_true, Bool.and_self,
+    not_not, List.any_nil, Bool.or_false, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
+     List.any_eq_true]
+  constructor
+  cases Classical.em (toProp k)
+  right
+  assumption
+  left
+  assumption
+  unfold fToProp at l
+  exact l
+
 theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel n) :=
   by
-  sorry
+  intro n
+  unfold normalizel
+  unfold normalize
+  rw [← booleanize_eqiv]
+  unfold fToProp
+  simp only [List.all_cons, List.any_cons, List.all_nil, Bool.and_true, List.any_nil, Bool.or_false,
+    Bool.and_eq_true, decide_eq_true_eq, List.any_eq_true, iff_self_and]
+  intro
+  apply subnormal
 
 def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
