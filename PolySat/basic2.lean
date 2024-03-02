@@ -13,8 +13,6 @@ import Mathlib.Data.Bool.Basic
 
 open Classical
 
-
-
 variable {α : Type}[h : DecidableEq α]
 inductive normalizable α (pred : α -> Prop)
   where
@@ -45,7 +43,6 @@ theorem toProp_or : toProp (Or n₁ n₂) ↔ toProp n₁ ∨ toProp n₂ := Iff
 
 @[simp]
 theorem toProp_atom {a : α} : toProp (atom a : normalizable α pred) ↔ pred a := Iff.rfl
-
 
 def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable α pred))) :=
   match n with
@@ -208,13 +205,10 @@ theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
   rw [List.all_cons]
   simp only [List.any_cons, List.all_cons, List.all_nil, Bool.and_true, List.any_nil,
     Bool.or_false, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
-    List.mem_append, List.any_eq_true]
+    List.mem_append, List.any_eq_true,toProp_not,toProp_and]
   constructor
   rw [toProp_not]
   rw [toProp_and]
-  rw [toProp_not]
-  rw [toProp_and]
-  rw [toProp_not]
   exact andGateTaut
   rw [all_and]
   constructor
@@ -271,12 +265,43 @@ def makeCoherent (n : List (List (List (Bool × normalizable α pred)))) : List 
   n.map
   (fun x => (x.filter
   (fun y => y.Pairwise
-  (fun a b => a.snd == b.snd -> a.fst == b.fst))).map
+  (fun a b => a.snd = b.snd -> a.fst = b.fst))).map
   (fun y => y.dedup))
 
 theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), coherent (makeCoherent n) :=
   by
-  sorry
+  intro n g hg s hs
+  unfold makeCoherent at hg
+  obtain ⟨a, _, ha_transformed_to_g⟩ := List.mem_map.mp hg
+  subst ha_transformed_to_g
+  constructor
+  intros w x hw heqw
+  rw [List.mem_map] at hs
+  obtain ⟨b, hb_in_filtered_a, hb_eq_s⟩ := hs
+  subst hb_eq_s
+  rw [List.mem_filter] at hb_in_filtered_a
+  obtain ⟨hb_in_a, hb_pw⟩ := hb_in_filtered_a
+  have hb_pairwise : b.Pairwise (fun c d => c.snd = d.snd → c.fst = d.fst) := by simpa using hb_pw
+  have snd_eq : w.snd = x.snd := by simpa using heqw
+  have hp : ∀ c d, c ∈ b ∧ d ∈ b → c.2 = d.2 → c.1 = d.1 := by
+    intro c d ⟨hc, hd⟩
+    refine List.Pairwise.forall_of_forall ?_ (by simp) hb_pairwise hc hd
+    intro x y h1 h2
+    exact (h1 (h2.symm)).symm
+  obtain ⟨ hw_left, hw_right⟩ := hw
+  simp
+  apply hp
+  constructor
+  rw [← List.mem_dedup]
+  exact hw_left
+  rw [← List.mem_dedup]
+  exact hw_right
+  rw [beq_iff_eq] at heqw
+  exact heqw
+  simp [List.nodup_dedup] at hs
+  obtain ⟨b, _, hb_eq_s⟩ := hs
+  rw [← hb_eq_s]
+  exact List.nodup_dedup b
 
 def nfNegate (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map
