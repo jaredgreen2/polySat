@@ -54,10 +54,12 @@ def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable �
 def normalize :  normalizable α pred -> List (List (List (normalizable α pred))) := fun o =>
   [[o]] :: (subnormalize o)
 
+@[reducible]
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
   | Not i => (false,i)
   | i => (true,i)
+
 
 def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
@@ -112,7 +114,28 @@ theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fTo
   simp
   simp [nStrip_equiv]
 
-  theorem andGateTaut :  (a ∧ b ∧ (a ∧ b)) ∨ (¬ a ∧ ¬(a ∧ b)) ∨ (¬ b ∧ ¬(a ∧ b)) :=
+theorem w_neg :∀ a : Bool × normalizable α pred, wToProp (!a.1,a.2) <-> ¬ (wToProp a) :=
+  by
+  intro a
+  cases Classical.em (a.fst = true)
+  unfold wToProp
+  simp
+  rw [if_neg]
+  apply Iff.not
+  rw [if_pos]
+  assumption
+  simp
+  assumption
+  unfold wToProp
+  simp
+  rw [if_pos]
+  rw [if_neg]
+  rw [Classical.not_not]
+  assumption
+  rw [Bool.eq_false_iff]
+  assumption
+
+theorem andGateTaut :  (a ∧ b ∧ (a ∧ b)) ∨ (¬ a ∧ ¬(a ∧ b)) ∨ (¬ b ∧ ¬(a ∧ b)) :=
   by
   cases Classical.em a
   cases Classical.em b
@@ -302,17 +325,6 @@ theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), c
   obtain ⟨b, _, hb_eq_s⟩ := hs
   rw [← hb_eq_s]
   exact List.nodup_dedup b
-
-def nfNegate (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
-  n.map
-  (fun x => x.map
-  (fun y => y.map
-  (fun z => (!z.fst, z.snd))))
-
-theorem interesting : ∀ n : normalizable α pred, ¬(toProp n) <-> nToProp (nfNegate (normalizel n)) :=
-  by
-  sorry
-
 
 theorem property1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
