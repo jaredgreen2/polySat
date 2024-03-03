@@ -332,13 +332,35 @@ theorem property1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ i : Bool × normalizable α pred, (nToProp n -> sToProp s -> wToProp i) ->
                     (nToProp n -> (sToProp s <-> sToProp (s.concat i))) :=
   by
-  sorry
+  intro n
+  intro g
+  intro _
+  intro s
+  intro _
+  intro w
+  intro hw
+  intro hn
+  simp
+  unfold sToProp
+  rw [all_and]
+  constructor
+  intro hss
+  constructor
+  exact hss
+  simp
+  apply hw
+  exact hn
+  unfold sToProp
+  exact hss
+  intro hsw
+  exact hsw.left
 
 theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
                     ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                     ((nToProp n -> ¬(sToProp s)) -> nToProp n -> (gToProp g <-> gToProp (g.erase s))) :=
   by
+
   sorry
 
 def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
