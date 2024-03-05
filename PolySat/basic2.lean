@@ -10,7 +10,7 @@ import Mathlib.Data.List.Lattice
 import Mathlib.Data.List.Lemmas
 import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
-
+import Mathlib.Logic.Basic
 open Classical
 
 variable {α : Type}[h : DecidableEq α]
@@ -213,6 +213,110 @@ theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
   apply ha.right
   assumption
 
+theorem any_erase :∀ l : List b,∀ a: b -> Prop,
+                     ∀ s : b,s ∈ l -> ¬ (a s) -> (List.any l a <-> List.any (List.erase l s) a) :=
+  by
+  intro l
+  intro a
+  intro s
+  intro hs
+  intro hnas
+  induction' l with c d e
+  simp
+  constructor
+  simp at hs
+  cases' (Classical.em (c = s)) with hsc hsd
+  have hed : List.erase (c :: d) s = d :=
+  by {
+    unfold List.erase
+    rw [hsc]
+    simp
+  }
+  rw [hed]
+  simp
+  rw [hsc]
+  intro hsd
+  cases' hsd with hsdl hsdr
+  by_contra
+  apply hnas
+  exact hsdl
+  exact hsdr
+  cases' hs with hsl hsr
+  by_contra
+  apply hsd
+  rw [hsl]
+  simp only [Bool.or_eq_true, List.any_eq_true]
+  simp at e
+  intro hl
+  apply e at hsr
+  have hcd : List.erase (c :: d) s = c :: List.erase d s :=
+  by {
+    nth_rewrite 1 [ List.erase]
+    rw [← ne_eq] at hsd
+    apply beq_false_of_ne at hsd
+    rw [hsd]
+  }
+  rw [hcd]
+  simp
+  simp at hl
+  rw [← hsr]
+  exact hl
+  simp at hs
+  cases' (Classical.em (c = s)) with hsl hsr
+  have hed : List.erase (c :: d) s = d :=
+  by{
+    unfold List.erase
+    rw [hsl]
+    simp
+  }
+  rw [hed]
+  simp
+  rw [ hsl]
+  intro f
+  intro hf
+  intro haf
+  right
+  use f
+  have hcd : List.erase (c :: d) s = c :: List.erase d s :=
+  by{
+    nth_rewrite 1 [List.erase]
+    rw [← ne_eq]at hsr
+    apply beq_false_of_ne at hsr
+    rw [hsr]
+  }
+  rw [hcd]
+  rw [List.any_cons]
+  cases' hs with hsc hsd
+  by_contra
+  apply hsr
+  rw [hsc]
+  apply e at hsd
+  rw [List.any_cons]
+  simp only [Bool.or_eq_true, List.any_eq_true]
+  intro hcl
+  simp at hsd
+  simp
+  rw [hsd]
+  simp at hcl
+  exact hcl
+
+@[ext]
+theorem beq_ext {α : Type*} (inst1 : BEq α) (inst2 : BEq α)
+    (h : ∀ x y, @BEq.beq _ inst1 x y = @BEq.beq _ inst2 x y) :
+    inst1 = inst2 := by
+  have ⟨beq1⟩ := inst1
+  have ⟨beq2⟩ := inst2
+  congr
+  ext x y
+  exact h x y
+
+theorem lawful_beq_subsingleton {α : Type*} (inst1 : BEq α) (inst2 : BEq α)
+    [@LawfulBEq α inst1] [@LawfulBEq α inst2] :
+    inst1 = inst2 := by
+  ext x y
+  simp only [beq_eq_decide]
+
+
 theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
   by
   intro n
@@ -360,8 +464,26 @@ theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                     ((nToProp n -> ¬(sToProp s)) -> nToProp n -> (gToProp g <-> gToProp (g.erase s))) :=
   by
-
-  sorry
+  intro n
+  intro g
+  intro _
+  intro s
+  intro hs
+  intro hns
+  intro hn
+  unfold gToProp
+  have hnos : ¬ sToProp s :=
+  by {
+    apply hns
+    exact hn
+  }
+  apply any_erase at g
+  apply g at hs
+  apply hs at hnos
+  rw [hnos]
+  simp
+  congr!
+  apply lawful_beq_subsingleton
 
 def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
   s.all (fun x => t.all (fun y =>  x.snd == y.snd -> x.fst == y.fst))

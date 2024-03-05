@@ -26,4 +26,4 @@ i'm aware though that the completeness of the set doesn't immediately follow fro
 when a state is picked(assumed) after the reduction is completed, the reduction is done again, removing all the impossible states accordingly. if im correct, it should already be the case that the state assumed is compatible with at least one state per clause, or else it would have been eliminated and thus not picked. after the second reduction the first state has been joined to every remaining state and committed to. then the process is repeated for all the clauses, and if im right, at no point do any of them end up empty, so at the end of that process a solution is found.
 
 
-author: Jared Loren Green. 2024. United States. this and all other works by me are released under permissive license. contributions welcome.
+author: Jared Loren Green. 2024. United States. this and all other published works by me are released under permissive license. contributions welcome.
