@@ -1,4 +1,5 @@
 import Init.Data.List
+import Init.PropLemmas
 import Std.Data.List
 import Mathlib.Data.List.Dedup
 import Mathlib.Data.List.Pairwise
@@ -194,8 +195,7 @@ theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
   constructor
   intro ha
   constructor
-  intro b
-  intro hb
+  intro b hb
   apply ha
   left
   exact hb
@@ -204,9 +204,7 @@ theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
   apply ha
   right
   exact hc
-  intro ha
-  intro b
-  intro hb
+  intro ha b hb
   cases hb
   apply ha.left
   assumption
@@ -216,11 +214,7 @@ theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
 theorem any_erase :∀ l : List b,∀ a: b -> Prop,
                      ∀ s : b,s ∈ l -> ¬ (a s) -> (List.any l a <-> List.any (List.erase l s) a) :=
   by
-  intro l
-  intro a
-  intro s
-  intro hs
-  intro hnas
+  intro l a s hs hnas
   induction' l with c d e
   simp
   constructor
@@ -272,9 +266,7 @@ theorem any_erase :∀ l : List b,∀ a: b -> Prop,
   rw [hed]
   simp
   rw [ hsl]
-  intro f
-  intro hf
-  intro haf
+  intro f hf haf
   right
   use f
   have hcd : List.erase (c :: d) s = c :: List.erase d s :=
@@ -436,14 +428,7 @@ theorem property1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ i : Bool × normalizable α pred, (nToProp n -> sToProp s -> wToProp i) ->
                     (nToProp n -> (sToProp s <-> sToProp (s.concat i))) :=
   by
-  intro n
-  intro g
-  intro _
-  intro s
-  intro _
-  intro w
-  intro hw
-  intro hn
+  intro n g _ s _ w hw hn
   simp
   unfold sToProp
   rw [all_and]
@@ -464,13 +449,7 @@ theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                     ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                     ((nToProp n -> ¬(sToProp s)) -> nToProp n -> (gToProp g <-> gToProp (g.erase s))) :=
   by
-  intro n
-  intro g
-  intro _
-  intro s
-  intro hs
-  intro hns
-  intro hn
+  intro n g _ s hs hns hn
   unfold gToProp
   have hnos : ¬ sToProp s :=
   by {
@@ -492,12 +471,99 @@ theorem rule1 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
                 ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                 ∀ v : Bool × normalizable α pred, ¬(v ∈ s) ->
-                (∃ h : List (List (Bool × normalizable α pred)), h ∈ n ->
+                (∃ h : List (List (Bool × normalizable α pred)), h ∈ n ∧
                 ∀ t : List (Bool × normalizable α pred), t ∈ h ->
                 bcompatible t s -> v ∈ t) ->
                 nToProp n -> sToProp s -> wToProp v :=
   by
-  sorry
+  intro n g _ s _ v _ hh
+  obtain ⟨ i, hh, hah⟩ := hh
+  intro hn
+  have hi : gToProp i := by {
+    unfold nToProp at hn
+    simp at hn
+    apply hn at hh
+    exact hh
+  }
+  intro hhs
+  unfold gToProp at hi
+  unfold sToProp at hi
+  simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
+    List.any_eq_true, Bool.and_eq_true] at hi
+  by_contra hw
+  have hni : ¬ (∃ x ∈ i, ∀ w ∈ x, wToProp w) := by {
+    rw [not_exists]
+    simp only [ Bool.forall_bool, not_and]
+    intro x
+    intro hx
+    push_neg
+    cases' Classical.em (bcompatible x s) with hvx hvnx
+    use v
+    constructor
+    apply hah
+    exact hx
+    exact hvx
+    exact hw
+    unfold bcompatible at hvnx
+    simp only [beq_iff_eq, List.all_eq_true, decide_eq_true_eq, Bool.forall_bool,
+      implies_true, imp_false, true_and, and_true, not_and, not_forall, not_not, exists_prop,
+      exists_eq_right'] at hvnx
+    obtain ⟨ y,hy,z,hz,hyzl,hyzr⟩ := hvnx
+    have hwy : wToProp z := by {
+      unfold sToProp at hhs
+      simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool] at hhs
+      apply hhs
+      exact hz
+    }
+    cases' Classical.em (sToProp x) with hyl hzr
+    exfalso
+    have hzl : wToProp y := by {
+      unfold sToProp at hyl
+      simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool] at hyl
+      apply hyl
+      exact hy
+    }
+    have hy1 : y.1 == ! z.1 := by {
+      simp
+      cases' Classical.em (y.1 = true) with hy hy
+      cases' Classical.em (z.1 = true) with hz hz
+      by_contra hzy
+      simp at hzy
+      apply hyzr
+      exact hzy
+      simp at hz
+      rw [hz]
+      simp
+      rw [hy]
+      cases' Classical.em (z.1 = true) with hz hz
+      simp at hy
+      rw [hz]
+      rw [hy]
+      simp
+      rw [eq_comm]
+      by_contra hyz
+      simp at hyz
+      apply hyzr
+      rw [eq_comm]
+      exact hyz
+    }
+    simp at hy1
+    have hyp : y = (y.1,y.2) := by {
+      simp
+    }
+    rw [hyp] at hzl
+    rw [hy1] at hzl
+    rw [hyzl] at hzl
+    rw [w_neg] at hzl
+    apply hzl
+    exact hwy
+    unfold sToProp at hzr
+    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, not_and,
+      not_forall, exists_prop] at hzr
+    exact hzr
+  }
+  apply hni
+  exact hi
 
 theorem rule2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
