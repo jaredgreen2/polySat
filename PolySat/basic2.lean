@@ -569,11 +569,70 @@ theorem rule2 : ∀ n : List (List (List (Bool × normalizable α pred))),
                 ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
                 ∀ s : List (Bool × normalizable α pred), s ∈ g ->
                 (∃ h : List (List (Bool × normalizable α pred)), h ∈ n ∧
-                ∀ t : List (Bool × normalizable α pred), t ∈ h ∧
+                ∀ t : List (Bool × normalizable α pred), t ∈ h ->
                 ¬(bcompatible s t)) ->
                 nToProp n -> ¬(sToProp s) :=
   by
-  sorry
+  intro n g _ s _ hi hn hns
+  obtain ⟨ h,hh,hat⟩ := hi
+  have hgh : gToProp h := by {
+    unfold nToProp at hn
+    simp at hn
+    apply hn
+    exact hh
+  }
+  unfold gToProp at hgh
+  simp at hgh
+  obtain ⟨ x,hx,hsx⟩ := hgh
+  unfold sToProp at hsx
+  simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool] at hsx
+  apply hat at hx
+  unfold bcompatible at hx
+  simp only [beq_iff_eq, List.all_eq_true, decide_eq_true_eq, Bool.forall_bool,
+    implies_true, imp_false, true_and, and_true, not_and, not_forall, not_not, exists_prop,
+    exists_eq_right'] at hx
+  obtain ⟨ y, hy, z, hz,hyzl, hyzr⟩ := hx
+  have hzl : wToProp y := by {
+      unfold sToProp at hns
+      simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool] at hns
+      apply hns
+      exact hy
+    }
+  have hy1 : y.1 == ! z.1 := by {
+    simp
+    cases' Classical.em (y.1 = true) with hy hy
+    cases' Classical.em (z.1 = true) with hz hz
+    by_contra hzy
+    simp at hzy
+    apply hyzr
+    exact hzy
+    simp at hz
+    rw [hz]
+    simp
+    rw [hy]
+    cases' Classical.em (z.1 = true) with hz hz
+    simp at hy
+    rw [hz]
+    rw [hy]
+    simp
+    rw [eq_comm]
+    by_contra hyz
+    simp at hyz
+    apply hyzr
+    rw [eq_comm]
+    exact hyz
+  }
+  simp at hy1
+  have hyp : y = (y.1,y.2) := by {
+    simp
+  }
+  rw [hyp] at hzl
+  rw [hy1] at hzl
+  rw [hyzl] at hzl
+  rw [w_neg] at hzl
+  apply hzl
+  apply hsx
+  exact hz
 
 theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] ∈ n -> ¬(nToProp n) :=
   by
