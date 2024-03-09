@@ -911,9 +911,62 @@ def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : Li
   decreasing_by
   simp_wf
 
-theorem leneqclean : ∀ n : List (List (List (Bool × normalizable α pred))), (clean n (order n)).length = n.length :=
+theorem leneqclean : ∀ o : Nat, ∀ n : List (List (List (Bool × normalizable α pred))), (clean n o).length = n.length :=
   by
-  sorry
+  intro o
+  induction' o with o ho
+  intro n
+  unfold clean
+  simp
+  have hm : List.length (makeCoherent n) = List.length n := by {
+    unfold makeCoherent
+    simp
+  }
+  exact hm
+  intro n
+  unfold clean
+  simp
+  cases' Classical.em (order (makeCoherent n) ≤
+          order
+            (if [] ∈ makeCoherent n then makeCoherent n
+            else
+              List.map
+                (fun t ↦
+                  List.foldl
+                    (fun p q ↦
+                      List.map
+                        (fun w ↦
+                          w ++ List.filter (fun x ↦ !decide (x ∈ w)) (interl (List.filter (fun v ↦ bcompatible v w) q)))
+                        (List.filter (fun u ↦ List.any q fun v ↦ bcompatible v u) p))
+                    t (makeCoherent n))
+                (makeCoherent n))) with hord hnord
+  rw [if_pos]
+  have hm : List.length (makeCoherent n) = List.length n := by {
+    unfold makeCoherent
+    simp
+  }
+  apply ho at n
+  exact hm
+  exact hord
+  rw [if_neg]
+  rw [ho]
+  cases' Classical.em ([] ∈ makeCoherent n) with hmc hnmc
+  rw [if_pos]
+  have hm : List.length (makeCoherent n) = List.length n := by {
+    unfold makeCoherent
+    simp
+  }
+  exact hm
+  exact hmc
+  rw [if_neg]
+  simp
+  have hm : List.length (makeCoherent n) = List.length n := by {
+    unfold makeCoherent
+    simp
+  }
+  exact hm
+  exact hnmc
+  exact hnord
 
 def solutions (o : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
   clean (normalizel o) (order (normalizel o))
