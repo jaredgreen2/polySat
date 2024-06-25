@@ -12,6 +12,7 @@ import Mathlib.Data.List.Lemmas
 import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
 import Mathlib.Logic.Basic
+import Batteries.Data.List.Lemmas
 open Classical
 
 variable {α : Type}[h : DecidableEq α]
@@ -755,92 +756,92 @@ theorem interl_all (s : a -> Prop) : ∀ l : List (List a), l.any (fun x => x.al
   exact hx
   exact hhx
 
-theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
-              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
-              nToProp n -> (gToProp g <-> gToProp (g.map (fun x => x.append (interl ((h.filter (fun y => bcompatible x y)).map (fun y => y.filter (fun z => z ∉ x))))))) :=
-  by
-  intro n g hi hhi hg hn
-  simp at hg
-  simp
-  unfold gToProp
-  simp
-  constructor
-  intro hl
-  obtain ⟨ t,ht,hht⟩ := hl
-  use t
-  have h_comp_exists: ∃ y ∈ hi, bcompatible t y := by {
-    apply hg
-    exact ht
-  }
-  have hhm : (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t) ) ≠ [] := by {
-    simp
-    rcases h_comp_exists with ⟨y, hy_in_hi, hy_comp_t⟩
-    apply List.ne_nil_of_mem
-    apply List.mem_filter_of_mem
-    exact hy_in_hi
-    exact hy_comp_t
-  }
-  constructor
-  exact ht
-  unfold sToProp
-  rw [all_and]
-  constructor
-  unfold sToProp at hht
-  simp only [List.all_eq_true, decide_eq_true_eq]
-  simp only [List.all_eq_true, decide_eq_true_eq] at hht
-  exact hht
-  unfold nToProp at hn
-  simp only [List.all_eq_true, decide_eq_true_eq] at hn
-  have hgi : gToProp hi := by {
-    apply hn at hi
-    apply hi at hhi
-    exact hhi
-  }
-  unfold gToProp at hgi
-  unfold sToProp at hgi
-  have hfi : gToProp ((hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))) := by{
-    unfold gToProp
-    have hfh : gToProp (hi.filter (fun x=> bcompatible t x)) := by {
-      apply any_filter_imp (fun x => bcompatible t x) (fun x => sToProp x) at hi
-      unfold gToProp
-      rw [← hi]
-      unfold sToProp
-      exact hgi
-      intro x hx
-      apply compatibility at hx
-      simp at hx
-      simp
-      apply hx
-      exact hht
-    }
-    unfold gToProp at hfh
-    unfold sToProp at hfh
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
-      List.any_eq_true, Bool.and_eq_true] at hfh
-    obtain ⟨ x, hx,hhx⟩ := hfh
-    simp
-    use x
-    constructor
-    exact hx
-    unfold sToProp
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
-      List.any_eq_true, Bool.and_eq_true] at hgi
-    apply all_filter
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool]
-    exact hhx
-  }
-  have hmi := (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))
-  have hmie : hmi = (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t)) := by {
-    sorry
-  }
+--theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
+--              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
+--              nToProp n -> (gToProp g <-> gToProp (g.map (fun x => x.append (interl ((h.filter (fun y => bcompatible x y)).map (fun y => y.filter (fun z => z ∉ x))))))) :=
+--  by
+--  intro n g hi hhi hg hn
+--  simp at hg
+--  simp
+--  unfold gToProp
+--  simp
+--  constructor
+--  intro hl
+--  obtain ⟨ t,ht,hht⟩ := hl
+--  use t
+--  have h_comp_exists: ∃ y ∈ hi, bcompatible t y := by {
+--    apply hg
+--    exact ht
+--  }
+--  have hhm : (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t) ) ≠ [] := by {
+--    simp
+--    rcases h_comp_exists with ⟨y, hy_in_hi, hy_comp_t⟩
+--    apply List.ne_nil_of_mem
+--    apply List.mem_filter_of_mem
+--    exact hy_in_hi
+--    exact hy_comp_t
+--  }
+--  constructor
+--  exact ht
+--  unfold sToProp
+--  rw [all_and]
+--  constructor
+--  unfold sToProp at hht
+--  simp only [List.all_eq_true, decide_eq_true_eq]
+--  simp only [List.all_eq_true, decide_eq_true_eq] at hht
+--  exact hht
+--  unfold nToProp at hn
+--  simp only [List.all_eq_true, decide_eq_true_eq] at hn
+--  have hgi : gToProp hi := by {
+--    apply hn at hi
+--    apply hi at hhi
+--    exact hhi
+--  }
+--  unfold gToProp at hgi
+--  unfold sToProp at hgi
+--  have hfi : gToProp ((hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))) := by{
+--    unfold gToProp
+--    have hfh : gToProp (hi.filter (fun x=> bcompatible t x)) := by {
+--      apply any_filter_imp (fun x => bcompatible t x) (fun x => sToProp x) at hi
+--      unfold gToProp
+--      rw [← hi]
+--      unfold sToProp
+--      exact hgi
+--      intro x hx
+--      apply compatibility at hx
+--      simp at hx
+--      simp
+--      apply hx
+--      exact hht
+--    }
+--    unfold gToProp at hfh
+--    unfold sToProp at hfh
+--    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
+--      List.any_eq_true, Bool.and_eq_true] at hfh
+--    obtain ⟨ x, hx,hhx⟩ := hfh
+--    simp
+--    use x
+--    constructor
+--    exact hx
+--    unfold sToProp
+--    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
+--      List.any_eq_true, Bool.and_eq_true] at hgi
+--    apply all_filter
+--    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool]
+--    exact hhx
+--  }
+--  have hmi := (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))
+--  have hmie : hmi = (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t)) := by {
+--    sorry
+--  }
   --rw [←  hmie]
-  apply interl_all wToProp at hmi
+--  apply interl_all wToProp at hmi
   --apply hmi
-  unfold gToProp at hfi
-  unfold sToProp at hfi
+--  unfold gToProp at hfi
+--  unfold sToProp at hfi
   --exact hfi
-  sorry
-  sorry
+--  sorry
+--  sorry
 
 theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] ∈ n -> ¬(nToProp n) :=
   by
@@ -853,32 +854,32 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
   exact hn
   simp
 
-theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
-             (nToProp n -> (sToProp s -> wToProp w)) ->
-             ∃ t : List (Bool × normalizable α pred),
-             (List.Subset s t) ∧ ¬(w ∈ t) ∧
-             (nToProp n -> (sToProp s <-> sToProp t)) ∧
-             ∃ h i : List (List (Bool × normalizable α pred)),
-             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
-             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
-             (bcompatible t u) -> w ∈ u :=
-  by
-  sorry
+--theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
+--             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+--             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+--             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
+--             (nToProp n -> (sToProp s -> wToProp w)) ->
+--             ∃ t : List (Bool × normalizable α pred),
+--             (List.Subset s t) ∧ ¬(w ∈ t) ∧
+--             (nToProp n -> (sToProp s <-> sToProp t)) ∧
+--             ∃ h i : List (List (Bool × normalizable α pred)),
+--             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
+--             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
+--             (bcompatible t u) -> w ∈ u :=
+--  by
+--  sorry
 
-theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-             ∃ a : List (Bool × normalizable α pred),
-             (List.Subset s a) ∧ (nToProp n -> (sToProp s <-> sToProp a)) ∧
-             ∃ h i : List (List (Bool × normalizable α pred)),h ∈ n ∧
-             (nToProp n -> (gToProp h <-> gToProp i)) ∧
-             ∀ t : List (Bool × normalizable α pred), t ∈ i ->
-             ¬(bcompatible a t) :=
-  by
-  sorry
+--theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
+--             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+--             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+--             ∃ a : List (Bool × normalizable α pred),
+--             (List.Subset s a) ∧ (nToProp n -> (sToProp s <-> sToProp a)) ∧
+--             ∃ h i : List (List (Bool × normalizable α pred)),h ∈ n ∧
+--             (nToProp n -> (gToProp h <-> gToProp i)) ∧
+--             ∀ t : List (Bool × normalizable α pred), t ∈ i ->
+--             ¬(bcompatible a t) :=
+--  by
+--  sorry
 
 def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   let count : Nat := Nat.succ (((n.map
@@ -977,16 +978,22 @@ def satisfiable? (o : normalizable α pred)  : Bool :=
 def lsatisfiable? (n : List (List (List (Bool × normalizable α pred)))) : Bool :=
   [] ∉ clean n (order n)
 
-def chose (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
+ def chose (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   match n with
   | [] => []
   | [[]] => []
-  | ([] :: as) => []
+  | ([] :: _) => []
   | (b :: _) :: as => let s := clean ([b] :: as) (order ([b] :: as)); if [] ∉ s then ([b] :: chose s.tail)  else []
   termination_by sizeOf n
   decreasing_by
+  have hl : List.length s = List.length ([b] :: as) :=
+  by
+  {apply leneqclean }
   simp_wf
-  sorry
+  --rw length_tail
+   -- sorry
+--  simp_wf
+--  sorry
 
 def getS (o : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   match o with
@@ -994,19 +1001,19 @@ def getS (o : List (List (List (Bool × normalizable α pred)))) : List (Bool ×
   | [] :: _ => []
   | (b :: _) :: bs => (b.append (getS bs)).dedup
 
-def solveWhole (o : normalizable α pred) : List (Bool × normalizable α pred) :=
+noncomputable def solveWhole (o : normalizable α pred) : List (Bool × normalizable α pred) :=
   getS (chose (solutions o))
 
-def lsolvewhole (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+noncomputable def lsolvewhole (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   getS (chose (clean n (order n)))
 
-theorem solveSound : ∀ n : normalizable α pred, satisfiable? n == false -> ¬ toProp n :=
-  by
-  sorry
+--theorem solveSound : ∀ n : normalizable α pred, satisfiable? n == false -> ¬ toProp n :=
+--  by
+--  sorry
 
-theorem lsolvesound : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == false -> ¬(nToProp n) :=
-  by
-  sorry
+--theorem lsolvesound : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == false -> ¬(nToProp n) :=
+--  by
+--  sorry
 
 def atoms (n : normalizable α pred) : List (normalizable α pred) :=
   match n with
@@ -1020,32 +1027,32 @@ def isAtom (n : normalizable α pred) : Bool :=
   |atom _ => true
   | _ => false
 
-def solveAtoms (o : normalizable α pred)  : List (Bool × normalizable α pred) :=
+noncomputable def solveAtoms (o : normalizable α pred)  : List (Bool × normalizable α pred) :=
    (solveWhole o).filter (fun a => isAtom a.snd)
 
-def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+noncomputable def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   let s := (lsolvewhole n);
   s.filter (fun a : Bool × normalizable α pred => isAtom a.snd)
 
-theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
-                        ∃ s : List (Bool × normalizable α pred), List.Subset (s.map snd) (atoms n) ∧ (s ≠ []) ∧
-                        sToProp s -> toProp n :=
-  by
-  intro n
-  intro
-  use (solveAtoms n)
+--theorem solveComplete : ∀ n : normalizable α pred, satisfiable? n == true ->
+--                        ∃ s : List (Bool × normalizable α pred), List.Subset (s.map snd) (atoms n) ∧ (s ≠ []) ∧
+--                        sToProp s -> toProp n :=
+--  by
+--  intro n
+--  intro
+--  use (solveAtoms n)
   --take it from here
-  sorry
+--  sorry
 
 --same thing here
-theorem lsolvecomplete : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == true ->
-                     ∃ s : List (Bool × normalizable α pred),
-                     (∀ w: Bool × normalizable α pred, w ∈ s -> isAtom w.snd)  ∧ (s ≠ []) ∧
-                     sToProp s -> nToProp n :=
-  by
-  sorry
+--theorem lsolvecomplete : ∀ n : List (List (List (Bool × normalizable α pred))), lsatisfiable? n == true ->
+--                     ∃ s : List (Bool × normalizable α pred),
+--                     (∀ w: Bool × normalizable α pred, w ∈ s -> isAtom w.snd)  ∧ (s ≠ []) ∧
+--                     sToProp s -> nToProp n :=
+--  by
+--  sorry
 
-def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred))))
+noncomputable def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred))))
                    : (List (Bool × normalizable α pred)  ×    List (List (List (Bool × normalizable α pred)))) :=
   let m := (s.map (fun x => [(!x.fst,x.snd)])) :: n;
   ((lsolveatoms (m)),m)

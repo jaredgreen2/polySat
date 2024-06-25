@@ -1,3 +1,3 @@
 -- This module serves as the root of the `PolySat` library.
 -- Import modules here that should be built as part of the library.
-import «PolySat».Basic
+import «PolySat».basic2

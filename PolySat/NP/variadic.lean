@@ -7,15 +7,17 @@ import Mathlib.Data.Bool.Basic
 import PolySat.basic2
 open Classical
 
-variable {α : Type}[h : DecidableEq α]
-inductive variadic α (pred : α -> Prop)
+--universe u
+variable  {α : Type }[h : DecidableEq α]{pred : α -> Prop}
+inductive variadic α pred
   where
-  | vatom : α => (variadic α pred)
+  | vatom : α -> (variadic α pred)
   | vAnd : List (variadic α pred) -> variadic α pred
   | vOr : List (variadic α pred) -> variadic α pred
   | vNot : variadic α pred -> variadic α pred
+deriving DecidableEq
 
-partial def toNormalizable (v : variadic α pred) -> normalizable α pred :=
+partial def toNormalizable (v : variadic α pred) : normalizable α pred :=
   match v with
   | vatom a => atom a
   | vAnd [a] => toNormalizable a
@@ -39,13 +41,13 @@ def subnormalize (v : variadic α pred) : List (List (List (normalizable α pred
   | vatom a => [[[atom a],[Not (atom a)]]]
 
 def normalize (v : variadic α pred) : List (List (List (Bool × normalizable α pred))) :=
-  booleanize ([[toNormalizable v]] :: (subnormalize v))
+  normalizable.booleanize ([[toNormalizable v]] :: (subnormalize v))
 
 def satisfiable? (v : variadic α pred) : Bool :=
-  lsatisfiable? (normalize v)
+  normalizable.lsatisfiable? (normalize v)
 
 def solutions (v : variadic α pred) : List (List (List (Bool × normalizable α pred))) :=
-  lsolutions (normalize v)
+  normalizable.clean (normalize v) (normalizable.order (normalize v))
 
 def solution (v : variadic α pred) : List (Bool × normalizable α pred) :=
-  lsolveatoms (normalize v)
+  (normalizable.getS (normalizable.chose (solutions v))).filter (fun a => normalizable.isAtom a.snd)

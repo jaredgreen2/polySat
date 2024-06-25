@@ -8,12 +8,15 @@ package «polySat» {
     ⟨`pp.proofs.withType, false⟩
   ],
   -- add any additional package configuration options here
+  moreLinkArgs := #["-L./.lake/packages/LeanCopilot/.lake/build/lib", "-lctranslate2"]
   }
 
 require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git"
 
 require «Duper» from git "https://github.com/leanprover-community/duper.git" @ "v0.0.8"
+require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.3.3"
+
 
 @[default_target]
 lean_lib «PolySat» where
