@@ -1,6 +1,6 @@
 import Init.Data.List
 import Init.PropLemmas
-import Std.Data.List
+import Mathlib.Algebra.BigOperators.Group.List
 import Mathlib.Data.List.Dedup
 import Mathlib.Data.List.Pairwise
 import Mathlib.Data.List.Join
@@ -345,23 +345,6 @@ theorem any_filter_imp (s t : a -> Bool): (∀ x : a, ¬ (s x) -> ¬ (t x)) -> �
   simp
   rw [ht]
 
-@[ext]
-theorem beq_ext {α : Type*} (inst1 : BEq α) (inst2 : BEq α)
-    (h : ∀ x y, @BEq.beq _ inst1 x y = @BEq.beq _ inst2 x y) :
-    inst1 = inst2 := by
-  have ⟨beq1⟩ := inst1
-  have ⟨beq2⟩ := inst2
-  congr
-  ext x y
-  exact h x y
-
-theorem lawful_beq_subsingleton {α : Type*} (inst1 : BEq α) (inst2 : BEq α)
-    [@LawfulBEq α inst1] [@LawfulBEq α inst2] :
-    inst1 = inst2 := by
-  ext x y
-  simp only [beq_eq_decide]
-
-
 theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
   by
   intro n
@@ -369,8 +352,6 @@ theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
   unfold subnormalize
   unfold fToProp
   simp
-  unfold toProp
-  apply Classical.em
   unfold subnormalize
   simp
   unfold fToProp
@@ -515,7 +496,6 @@ theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   rw [hnos]
   simp
   congr!
-  apply lawful_beq_subsingleton
 
 def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
   s.all (fun x => t.all (fun y =>  x.snd == y.snd -> x.fst == y.fst))
@@ -984,16 +964,15 @@ def lsatisfiable? (n : List (List (List (Bool × normalizable α pred)))) : Bool
   | [[]] => []
   | ([] :: _) => []
   | (b :: _) :: as => let s := clean ([b] :: as) (order ([b] :: as)); if [] ∉ s then ([b] :: chose s.tail)  else []
-  termination_by sizeOf n
+  termination_by List.length n
   decreasing_by
-  have hl : List.length s = List.length ([b] :: as) :=
+  have hl : List.length (clean ([b] :: as) (order ([b] :: as))) = List.length ([b] :: as) :=
   by
-  {apply leneqclean }
+  {apply leneqclean}
   simp_wf
-  --rw length_tail
-   -- sorry
---  simp_wf
---  sorry
+  rw [hl]
+  simp
+
 
 def getS (o : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   match o with
@@ -1001,10 +980,10 @@ def getS (o : List (List (List (Bool × normalizable α pred)))) : List (Bool ×
   | [] :: _ => []
   | (b :: _) :: bs => (b.append (getS bs)).dedup
 
-noncomputable def solveWhole (o : normalizable α pred) : List (Bool × normalizable α pred) :=
+ def solveWhole (o : normalizable α pred) : List (Bool × normalizable α pred) :=
   getS (chose (solutions o))
 
-noncomputable def lsolvewhole (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+ def lsolvewhole (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   getS (chose (clean n (order n)))
 
 --theorem solveSound : ∀ n : normalizable α pred, satisfiable? n == false -> ¬ toProp n :=
@@ -1027,10 +1006,10 @@ def isAtom (n : normalizable α pred) : Bool :=
   |atom _ => true
   | _ => false
 
-noncomputable def solveAtoms (o : normalizable α pred)  : List (Bool × normalizable α pred) :=
+ def solveAtoms (o : normalizable α pred)  : List (Bool × normalizable α pred) :=
    (solveWhole o).filter (fun a => isAtom a.snd)
 
-noncomputable def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
+ def lsolveatoms (n : List (List (List (Bool × normalizable α pred)))) : List (Bool × normalizable α pred) :=
   let s := (lsolvewhole n);
   s.filter (fun a : Bool × normalizable α pred => isAtom a.snd)
 
@@ -1052,7 +1031,7 @@ noncomputable def lsolveatoms (n : List (List (List (Bool × normalizable α pre
 --  by
 --  sorry
 
-noncomputable def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred))))
+ def nextSolution (s : List (Bool × normalizable α pred)) (n : List (List (List (Bool × normalizable α pred))))
                    : (List (Bool × normalizable α pred)  ×    List (List (List (Bool × normalizable α pred)))) :=
   let m := (s.map (fun x => [(!x.fst,x.snd)])) :: n;
   ((lsolveatoms (m)),m)
