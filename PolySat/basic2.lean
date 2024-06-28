@@ -705,10 +705,12 @@ theorem op1 : ∀ n : List (List (List (Bool × normalizable α pred))),
 def interl (l : List (List a)) [DecidableEq a] : List a :=
   match l with
   | [] => []
-  | [a] => a
+  | a :: [] => a
   | (a :: as) => List.inter a (interl as)
 
-theorem interl_all (s : a -> Prop) : ∀ l : List (List a), l.any (fun x => x.all (fun y => s y)) -> ∀ b ∈ interl l, s b :=
+
+theorem interl_all (s : a -> Prop) : ∀ l : List (List a),
+          l.any (fun x => x.all (fun y => s y)) -> ∀ b ∈ interl l, s b :=
   by
   intro l
   simp
@@ -736,92 +738,279 @@ theorem interl_all (s : a -> Prop) : ∀ l : List (List a), l.any (fun x => x.al
   exact hx
   exact hhx
 
---theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
---              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
---              nToProp n -> (gToProp g <-> gToProp (g.map (fun x => x.append (interl ((h.filter (fun y => bcompatible x y)).map (fun y => y.filter (fun z => z ∉ x))))))) :=
---  by
---  intro n g hi hhi hg hn
---  simp at hg
---  simp
---  unfold gToProp
---  simp
---  constructor
---  intro hl
---  obtain ⟨ t,ht,hht⟩ := hl
---  use t
---  have h_comp_exists: ∃ y ∈ hi, bcompatible t y := by {
---    apply hg
---    exact ht
---  }
---  have hhm : (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t) ) ≠ [] := by {
---    simp
---    rcases h_comp_exists with ⟨y, hy_in_hi, hy_comp_t⟩
---    apply List.ne_nil_of_mem
---    apply List.mem_filter_of_mem
---    exact hy_in_hi
---    exact hy_comp_t
---  }
---  constructor
---  exact ht
---  unfold sToProp
---  rw [all_and]
---  constructor
---  unfold sToProp at hht
---  simp only [List.all_eq_true, decide_eq_true_eq]
---  simp only [List.all_eq_true, decide_eq_true_eq] at hht
---  exact hht
---  unfold nToProp at hn
---  simp only [List.all_eq_true, decide_eq_true_eq] at hn
---  have hgi : gToProp hi := by {
---    apply hn at hi
---    apply hi at hhi
---    exact hhi
---  }
---  unfold gToProp at hgi
---  unfold sToProp at hgi
---  have hfi : gToProp ((hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))) := by{
---    unfold gToProp
---    have hfh : gToProp (hi.filter (fun x=> bcompatible t x)) := by {
---      apply any_filter_imp (fun x => bcompatible t x) (fun x => sToProp x) at hi
---      unfold gToProp
---      rw [← hi]
---      unfold sToProp
---      exact hgi
---      intro x hx
---      apply compatibility at hx
---      simp at hx
---      simp
---      apply hx
---      exact hht
---    }
---    unfold gToProp at hfh
---    unfold sToProp at hfh
---    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
---      List.any_eq_true, Bool.and_eq_true] at hfh
---    obtain ⟨ x, hx,hhx⟩ := hfh
---    simp
---    use x
---    constructor
---    exact hx
---    unfold sToProp
---    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
---      List.any_eq_true, Bool.and_eq_true] at hgi
---    apply all_filter
---    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool]
---    exact hhx
---  }
---  have hmi := (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))
---  have hmie : hmi = (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t)) := by {
---    sorry
---  }
-  --rw [←  hmie]
---  apply interl_all wToProp at hmi
-  --apply hmi
---  unfold gToProp at hfi
---  unfold sToProp at hfi
-  --exact hfi
---  sorry
---  sorry
+theorem interl_all_filter (s : a -> Prop)(t : List a -> Prop) : (∀ x : List a, ¬ t x -> ¬(x.all fun y => s y))
+     -> ∀ l : List (List a), (l.any (fun x => x.all (fun y => s y))
+     -> ∀ b ∈ interl (l.filter (fun x => t x)), s b) :=
+  by
+  intro ha l hl
+  simp at hl
+  obtain ⟨ m, hm, hhm⟩ := hl
+  induction' l with hd tl ht
+  simp
+  rw [List.filter_cons]
+  cases' Classical.em (t hd) with htll htlr
+  apply eq_true at htll
+  rw [htll]
+  simp
+  cases' Classical.em (tl = []) with htl htr
+  rw [htl]
+  simp
+  have hmd : m = hd := by
+  {
+    simp at hm
+    cases' hm with hml hmr
+    assumption
+    exfalso
+    rw [htl] at hmr
+    apply List.not_mem_nil at hmr
+    exact hmr
+  }
+  rw [← hmd]
+  exact hhm
+  cases' Classical.em (List.filter (fun x ↦ decide (t x)) tl = []) with htn htf
+  have hdm : interl (hd :: List.filter (fun x ↦ decide (t x)) tl) = hd := by {
+    rw [htn]
+  }
+  rw [hdm]
+  simp at hm
+  cases' hm with hm hm
+  rw [← hm]
+  exact hhm
+  exfalso
+  rw [List.filter_eq_nil] at htn
+  apply htn at hm
+  apply ha
+  simp at hm
+  exact hm
+  simp
+  exact hhm
+  unfold interl
+  simp
+  cases' Classical.em (m ∈ tl) with hmt hhd
+  apply List.forall_mem_inter_of_forall_right
+  apply ht
+  exact hmt
+  apply List.forall_mem_inter_of_forall_left
+  have hmd : m = hd := by{
+    simp at hm
+    cases hm
+    assumption
+    exfalso
+    apply hhd
+    assumption
+  }
+  rw [← hmd]
+  exact hhm
+  have hmnt : m ≠ hd := by {
+    intro hmt
+    apply ha
+    exact htlr
+    simp
+    rw [← hmt]
+    exact hhm
+  }
+  apply eq_false at htlr
+  rw [htlr]
+  simp
+  cases' Classical.em (tl = []) with htl htr
+  rw [htl]
+  simp
+  simp at hm
+  cases hm
+  exfalso
+  apply hmnt
+  assumption
+  apply ht
+  assumption
+
+
+theorem forall_mem_or {b : α -> Prop}{c : α -> Prop}{e : α -> Prop}: (∀ a, (b a ∨ c a) -> e a) <-> (∀ a, b a -> e a) ∧ (∀ a, c a -> e a ) :=
+  by
+  constructor
+  intro ha
+  constructor
+  intros a hha
+  apply ha
+  left
+  exact hha
+  intros a hha
+  apply ha
+  right
+  exact hha
+  intro ha
+  intros a hha
+  obtain ⟨ hal, har ⟩ := ha
+  cases hha
+  apply hal
+  assumption
+  apply har
+  assumption
+
+theorem interl_filter_filter (d : a -> Prop)(e : List a -> Prop):
+        ∀ b : a,∀ c : List (List a),
+        b ∈ interl ((c.filter (fun x: List a => e x)).map (fun x => x.filter (fun y : a => (d y) )))
+        -> b ∈ interl (c.filter fun x => e x) :=
+  by
+  intro f
+  intro l
+  induction' l with hd t ht
+  simp
+  cases' Classical.em (e hd) with hdl hdr
+  intro hi
+  rw [List.filter_cons]
+  simp
+  apply eq_true at hdl
+  rw [hdl]
+  simp
+  rw [List.filter_cons] at hi
+  rw [hdl] at hi
+  simp at hi
+  cases' Classical.em (  (List.filter (fun x ↦ decide (e x)) t) = []) with hfe hff
+  unfold interl
+  rw [hfe]
+  simp
+  unfold interl at hi
+  rw [hfe] at hi
+  simp at hi
+  apply List.filter_subset at hi
+  exact hi
+  unfold interl
+  simp
+  have hhi : f ∈
+    (List.filter (fun y ↦ decide (d y)) hd).inter
+    (interl (List.map (fun x ↦ List.filter
+    (fun y ↦ decide (d y)) x) (List.filter
+    (fun x ↦ decide (e x)) t))) := by{
+    unfold interl at hi
+    revert hi
+    have hfm : List.map (fun x ↦ List.filter (fun y ↦ decide (d y)) x) (List.filter (fun x ↦ decide (e x)) t) ≠ [] := by {
+      intro hg
+      simp at hg
+      apply hff
+      exact hg
+    }
+    simp
+  }
+  apply List.mem_inter_of_mem_of_mem
+  apply List.inter_subset_left at hhi
+  apply List.filter_subset at hhi
+  exact hhi
+  apply List.inter_subset_right at hhi
+  apply ht
+  exact hhi
+  rw [List.filter_cons]
+  apply eq_false at hdr
+  rw [hdr]
+  simp
+  exact ht
+
+
+theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
+              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
+              nToProp n -> (gToProp g <-> gToProp (g.map (fun x => x.append (interl ((h.filter (fun y => bcompatible x y)).map
+              (fun y => y.filter (fun z => z ∉ x))))))) :=
+  by
+  intro n g hi hhi hg hn
+  simp at hg
+  simp
+  unfold gToProp
+  simp
+  constructor
+  intro hl
+  obtain ⟨ t,ht,hht⟩ := hl
+  use t
+  have h_comp_exists: ∃ y ∈ hi, bcompatible t y := by {
+    apply hg
+    exact ht
+  }
+  have hhm : (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t) ) ≠ [] := by {
+    simp
+    rcases h_comp_exists with ⟨y, hy_in_hi, hy_comp_t⟩
+    apply List.ne_nil_of_mem
+    apply List.mem_filter_of_mem
+    exact hy_in_hi
+    exact hy_comp_t
+  }
+  constructor
+  exact ht
+  unfold sToProp
+  rw [all_and]
+  constructor
+  unfold sToProp at hht
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  simp only [List.all_eq_true, decide_eq_true_eq] at hht
+  exact hht
+  unfold nToProp at hn
+  simp only [List.all_eq_true, decide_eq_true_eq] at hn
+  have hgi : gToProp hi := by {
+    apply hn at hi
+    apply hi at hhi
+    exact hhi
+  }
+  unfold gToProp at hgi
+  unfold sToProp at hgi
+  have hfi : gToProp ((hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))) := by{
+    unfold gToProp
+    have hfh : gToProp (hi.filter (fun x=> bcompatible t x)) := by {
+      apply any_filter_imp (fun x => bcompatible t x) (fun x => sToProp x) at hi
+      unfold gToProp
+      rw [← hi]
+      unfold sToProp
+      exact hgi
+      intro x hx
+      apply compatibility at hx
+      simp at hx
+      simp
+      apply hx
+      exact hht
+    }
+    unfold gToProp at hfh
+    unfold sToProp at hfh
+    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
+      List.any_eq_true, Bool.and_eq_true] at hfh
+    obtain ⟨ x, hx,hhx⟩ := hfh
+    simp
+    use x
+    constructor
+    exact hx
+    unfold sToProp
+    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
+      List.any_eq_true, Bool.and_eq_true] at hgi
+    apply all_filter
+    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool]
+    exact hhx
+  }
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  intros p ho
+  apply interl_all_filter wToProp (fun y => bcompatible t y)
+  intro l hlb hla
+  have hlaf : sToProp l := by {
+    unfold sToProp
+    exact hla
+  }
+  apply compatibility at hlb
+  apply hlb
+  constructor
+  exact hht
+  exact hlaf
+  simp only [List.all_eq_true, decide_eq_true_eq, Prod.forall
+  ,  Bool.decide_and, List.any_eq_true, Bool.and_eq_true] at hgi
+  simp only [List.any_eq_true, List.all_eq_true, decide_eq_true_eq, Prod.forall]
+  exact hgi
+  apply interl_filter_filter (fun z => !(z ∈ t)) (fun x => bcompatible t x)
+  simp
+  --exact ho  --for some reason this is a type mismatch
+  sorry
+  intro hr
+  unfold sToProp at hr
+  unfold sToProp
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  simp only [List.all_eq_true, List.mem_append, decide_eq_true_eq, ] at hr
+  obtain ⟨ a, ha, hag⟩ := hr
+  rw [forall_mem_or] at hag
+  obtain ⟨ hagl,hagr⟩ := hag
+  use a
+
 
 theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] ∈ n -> ¬(nToProp n) :=
   by
@@ -871,8 +1060,6 @@ def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   (fun s => count - (List.length s))).sum)).sum
 
 
-
---all the messages after this are due to the lack of termination proof here. once one is here they will go away
 def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : List (List (List (Bool × normalizable α pred))) :=
   let s := makeCoherent r;
   match n with
