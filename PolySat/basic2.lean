@@ -823,7 +823,6 @@ theorem interl_all_filter (s : a -> Prop)(t : List a -> Prop) : (∀ x : List a,
   apply ht
   assumption
 
-
 theorem forall_mem_or {b : α -> Prop}{c : α -> Prop}{e : α -> Prop}: (∀ a, (b a ∨ c a) -> e a) <-> (∀ a, b a -> e a) ∧ (∀ a, c a -> e a ) :=
   by
   constructor
@@ -903,7 +902,6 @@ theorem interl_filter_filter (d : a -> Prop)(e : List a -> Prop):
   rw [hdr]
   simp
   exact ht
-
 
 theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
               ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
@@ -1011,7 +1009,6 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   obtain ⟨ hagl,hagr⟩ := hag
   use a
 
-
 theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] ∈ n -> ¬(nToProp n) :=
   by
   intro n hn
@@ -1059,21 +1056,29 @@ def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   (fun g => (g.map
   (fun s => count - (List.length s))).sum)).sum
 
-
 def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : List (List (List (Bool × normalizable α pred))) :=
   let s := makeCoherent r;
   match n with
   | 0 => s
   | Nat.succ a => let f := (if [] ∈ s then s else
     s.map
-  (fun t => s.foldl
-  (fun p q => (p.filter
-  (fun u => q.any
-  (fun v => bcompatible v u))).map
-  (fun w => w.append
-  ((interl (q.filter
-  (fun v => bcompatible v w))).filter
-  (fun x => ¬(x ∈ w))))) t));
+  (fun t : List (List (Bool × normalizable α pred)) =>
+    (t.filter
+      (fun w => s.all
+        (fun u => u.any
+          (fun v => bcompatible v w)))).map
+    (fun r : List (Bool × normalizable α pred) =>
+      (((s.filter
+            (fun u => !(u = t))).map
+          (fun p : List (List (Bool × (normalizable α pred))) =>
+            (p.filter
+              (fun v : List (Bool × (normalizable α pred)) => bcompatible v r)))
+        ).map
+        (fun w : List (List (Bool × normalizable α pred)) =>
+          ((interl (w.filter
+                (fun v : List (Bool × normalizable α  pred) => bcompatible v r))).filter
+            (fun x : Bool × normalizable α pred => ¬(x ∈ r))))).foldl
+      (fun u v : List (Bool × normalizable α pred) => u.union v) r)));
   if  order f >= order s then s else clean f a
   termination_by n
   decreasing_by
@@ -1095,19 +1100,20 @@ theorem leneqclean : ∀ o : Nat, ∀ n : List (List (List (Bool × normalizable
   unfold clean
   simp
   cases' Classical.em (order (makeCoherent n) ≤
-          order
-            (if [] ∈ makeCoherent n then makeCoherent n
-            else
-              List.map
-                (fun t ↦
-                  List.foldl
-                    (fun p q ↦
-                      List.map
-                        (fun w ↦
-                          w ++ List.filter (fun x ↦ !decide (x ∈ w)) (interl (List.filter (fun v ↦ bcompatible v w) q)))
-                        (List.filter (fun u ↦ List.any q fun v ↦ bcompatible v u) p))
-                    t (makeCoherent n))
-                (makeCoherent n))) with hord hnord
+         order
+    (if [] ∈ makeCoherent n then makeCoherent n
+    else
+      List.map
+        (fun t ↦
+          List.map
+            (fun r ↦
+              List.foldl (fun u v ↦ u.union v) r
+                (List.map
+                  ((fun w ↦ List.filter (fun x ↦ !decide (x ∈ r)) (interl (List.filter (fun v ↦ bcompatible v r) w))) ∘
+                    fun p ↦ List.filter (fun v ↦ bcompatible v r) p)
+                  (List.filter (fun u ↦ !decide (u = t)) (makeCoherent n))))
+            (List.filter (fun w ↦ (makeCoherent n).all fun u ↦ u.any fun v ↦ bcompatible v w) t))
+        (makeCoherent n))) with hord hnord
   rw [if_pos]
   have hm : List.length (makeCoherent n) = List.length n := by {
     unfold makeCoherent
