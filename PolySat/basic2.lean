@@ -823,7 +823,7 @@ theorem interl_all_filter (s : a -> Prop)(t : List a -> Prop) : (∀ x : List a,
   apply ht
   assumption
 
-theorem forall_mem_or {b : α -> Prop}{c : α -> Prop}{e : α -> Prop}: (∀ a, (b a ∨ c a) -> e a) <-> (∀ a, b a -> e a) ∧ (∀ a, c a -> e a ) :=
+theorem forall_mem_or {b : a -> Prop}{c : a -> Prop}{e : a -> Prop}: (∀ f, (b f ∨ c f) -> e f) <-> (∀ f, b f -> e f) ∧ (∀ f, c f -> e f ) :=
   by
   constructor
   intro ha
@@ -904,8 +904,13 @@ theorem interl_filter_filter (d : a -> Prop)(e : List a -> Prop):
   exact ht
 
 theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
-              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n -> g.all (fun x => h.any (fun y => bcompatible x y)) ->
-              nToProp n -> (gToProp g <-> gToProp (g.map (fun x => x.append (interl ((h.filter (fun y => bcompatible x y)).map
+              ∀ g h : List (List (Bool × normalizable α pred)), h ∈ n
+              -> g.all (fun x => h.any (fun y => bcompatible x y))
+              -> nToProp n
+              -> (gToProp g
+                <-> gToProp (g.map (fun x =>
+                x.append (interl ((h.filter
+                (fun y => bcompatible x y)).map
               (fun y => y.filter (fun z => z ∉ x))))))) :=
   by
   intro n g hi hhi hg hn
@@ -917,18 +922,6 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   intro hl
   obtain ⟨ t,ht,hht⟩ := hl
   use t
-  have h_comp_exists: ∃ y ∈ hi, bcompatible t y := by {
-    apply hg
-    exact ht
-  }
-  have hhm : (hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t) ) ≠ [] := by {
-    simp
-    rcases h_comp_exists with ⟨y, hy_in_hi, hy_comp_t⟩
-    apply List.ne_nil_of_mem
-    apply List.mem_filter_of_mem
-    exact hy_in_hi
-    exact hy_comp_t
-  }
   constructor
   exact ht
   unfold sToProp
@@ -947,37 +940,6 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   }
   unfold gToProp at hgi
   unfold sToProp at hgi
-  have hfi : gToProp ((hi.filter (fun x => bcompatible t x)).map (fun x => x.filter (fun y => y ∉ t))) := by{
-    unfold gToProp
-    have hfh : gToProp (hi.filter (fun x=> bcompatible t x)) := by {
-      apply any_filter_imp (fun x => bcompatible t x) (fun x => sToProp x) at hi
-      unfold gToProp
-      rw [← hi]
-      unfold sToProp
-      exact hgi
-      intro x hx
-      apply compatibility at hx
-      simp at hx
-      simp
-      apply hx
-      exact hht
-    }
-    unfold gToProp at hfh
-    unfold sToProp at hfh
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
-      List.any_eq_true, Bool.and_eq_true] at hfh
-    obtain ⟨ x, hx,hhx⟩ := hfh
-    simp
-    use x
-    constructor
-    exact hx
-    unfold sToProp
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool, Bool.decide_and,
-      List.any_eq_true, Bool.and_eq_true] at hgi
-    apply all_filter
-    simp only [List.all_eq_true, decide_eq_true_eq, Bool.forall_bool]
-    exact hhx
-  }
   simp only [List.all_eq_true, decide_eq_true_eq]
   intros p ho
   apply interl_all_filter wToProp (fun y => bcompatible t y)
@@ -997,8 +959,8 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hgi
   apply interl_filter_filter (fun z => !(z ∈ t)) (fun x => bcompatible t x)
   simp
-  --exact ho  --for some reason this is a type mismatch
-  sorry
+  unfold instDecidableEqProd at ho
+  convert ho
   intro hr
   unfold sToProp at hr
   unfold sToProp
@@ -1006,7 +968,7 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   simp only [List.all_eq_true, List.mem_append, decide_eq_true_eq, ] at hr
   obtain ⟨ a, ha, hag⟩ := hr
   rw [forall_mem_or] at hag
-  obtain ⟨ hagl,hagr⟩ := hag
+  obtain ⟨ hagl,_⟩ := hag
   use a
 
 theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] ∈ n -> ¬(nToProp n) :=
@@ -1033,6 +995,7 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
 --             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
 --             (bcompatible t u) -> w ∈ u :=
 --  by
+--
 --  sorry
 
 --theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
@@ -1072,8 +1035,7 @@ def clean (r : List (List (List (Bool × normalizable α pred)))) (n : Nat) : Li
             (fun u => !(u = t))).map
           (fun p : List (List (Bool × (normalizable α pred))) =>
             (p.filter
-              (fun v : List (Bool × (normalizable α pred)) => bcompatible v r)))
-        ).map
+              (fun v : List (Bool × (normalizable α pred)) => bcompatible v r)))).map
         (fun w : List (List (Bool × normalizable α pred)) =>
           ((interl (w.filter
                 (fun v : List (Bool × normalizable α  pred) => bcompatible v r))).filter
@@ -1143,7 +1105,7 @@ theorem leneqclean : ∀ o : Nat, ∀ n : List (List (List (Bool × normalizable
   exact hnord
 
 def solutions (o : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
-  clean (normalizel o) (order (normalizel o))
+  clean (makeCoherent (normalizel o)) (order (normalizel o))
 
 def satisfiable? (o : normalizable α pred)  : Bool :=
   [] ∉ solutions o

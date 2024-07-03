@@ -81,15 +81,7 @@
    "manifestFile": "lake-manifest.json",
    "inputRev": "v0.0.13",
    "inherited": false,
-   "configFile": "lakefile.lean"},
-  {"url": "https://github.com/lean-dojo/LeanCopilot.git",
-   "type": "git",
-   "subDir": null,
-   "rev": "f2150ad1e1344ae0a9db19462aa2401d6fcc46cf",
-   "name": "LeanCopilot",
-   "manifestFile": "lake-manifest.json",
-   "inputRev": "v1.3.3",
-   "inherited": false,
-   "configFile": "lakefile.lean"}],
+   "configFile": "lakefile.lean"}
+  ],
  "name": "polySat",
  "lakeDir": ".lake"}
