@@ -15,7 +15,15 @@ variable (s: Sudoku n)
 
 Type SudokuInstance n := List ((fin (n ^ 2) × fin (n ^ 2)) × fin (n ^ 2 + 1))
 
-def SudokuPred n (a : (fin n^2 × fin n^2)× fin n^2 + 1 ):= ((s.get a.fst.fst).get (a.fst.snd)) = a.snd
+def SudokuInit (init : Sudoku n) : SudokuInstance n :=
+  ((init.toList.zip (List.range n^2)).map
+  (fun x => (x.1.toList.zip (List.range n^2)).map
+  (fun y => if y.1 == 0
+    then []
+    else [((x.2,y.2),y.1)]
+  )).fold (++)).fold (++)
+
+def SudokuPred n (a : (fin n^2 × fin n^2) × (fin (n^2 + 1)) ):= ((s.get a.fst.fst).get (a.fst.snd)) = a.snd
 
 def cellConstraints n : List (List (List (Bool × normalizable ((fin (n ^ 2) × fin (n ^ 2)) × fin (n ^ 2 + 1)) SudokuPred))) :=
   ((List.range (n^2 - 1)).map
@@ -47,9 +55,12 @@ def blockConstraints n: List (List (List (Bool × normalizable ((fin (n ^ 2) × 
 def SudokuConstraints n (i : SudokuInstance n) : List (List (List (Bool × normalizable ((fin (n ^ 2) × fin (n ^ 2)) × fin (n ^ 2 + 1)) SudokuPred))) :=
   [(i.map (fun x => [[atom x]])), cellConstraints n, rowConstraints n, blockConstraints n].Join
 
-partial def solution n (i : SudokuInstance n) : Sudoku n :=
+partial def solution  (i : SudokuInstance n) : Sudoku n :=
   if lsatisfiable? (sudokuConstrints n i)
   then (Vector.range (n^2 - 1)).map
     (fun x => (Vector.range (n^2 - 1)).map
     (fun y => ((lsolveatoms (SudokuConstraints i)).find
     (fun z => z.fst = (x,y))).snd))
+
+partial def solve (i : Sudoku n) : Sudoku n :=
+  soution (SudokuInit i)

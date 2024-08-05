@@ -13,6 +13,7 @@ import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
 import Mathlib.Logic.Basic
 import Batteries.Data.List.Lemmas
+import Aesop
 open Classical
 
 variable {α : Type}[h : DecidableEq α]
@@ -46,6 +47,7 @@ theorem toProp_or : toProp (Or n₁ n₂) ↔ toProp n₁ ∨ toProp n₂ := Iff
 @[simp]
 theorem toProp_atom {a : α} : toProp (atom a : normalizable α pred) ↔ pred a := Iff.rfl
 
+
 def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable α pred))) :=
   match n with
   | Or a b => [[a,n],[b,n],[Not a,Not b, Not n]] :: (List.append (subnormalize a) (subnormalize b))
@@ -56,34 +58,41 @@ def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable �
 def normalize :  normalizable α pred -> List (List (List (normalizable α pred))) := fun o =>
   [[o]] :: (subnormalize o)
 
-@[reducible]
+@[simp]
+--@[reducible]
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
   | Not i => (false,i)
   | i => (true,i)
 
-
+@[aesop 50% unfold]
 def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
 
 def normalizel (n : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
   booleanize (normalize n)
 
+@[aesop 50% unfold]
 def wToProp (w : Bool × normalizable α pred) : Prop :=
   if w.fst then toProp w.snd else ¬(toProp w.snd)
 
+@[aesop 50% unfold]
 def sToProp (s : List (Bool × normalizable α pred)) : Prop :=
   s.all (fun x => wToProp x)
 
+@[aesop 50% unfold]
 def gToProp (g : List (List (Bool × normalizable α pred))) : Prop :=
   g.any (fun x => sToProp x)
 
+@[aesop 50% unfold]
 def nToProp (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   n.all (fun x => gToProp x)
 
+@[aesop 50% unfold]
 def fToProp (n : List (List (List (normalizable α pred)))) : Prop :=
   n.all (fun x => x.any (fun y => y.all (fun z => toProp z)))
 
+--@[simp]
 theorem nStrip_equiv : ∀ n : normalizable α pred, toProp n <-> wToProp (nStrip n) :=
   by
   intro n
@@ -111,6 +120,7 @@ theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fTo
   unfold booleanize
   simp
   unfold gToProp
+  --aesop?
   simp
   unfold sToProp
   simp
@@ -982,21 +992,25 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
   exact hn
   simp
 
---theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
---             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
---             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
---             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
---             (nToProp n -> (sToProp s -> wToProp w)) ->
---             ∃ t : List (Bool × normalizable α pred),
---             (List.Subset s t) ∧ ¬(w ∈ t) ∧
---             (nToProp n -> (sToProp s <-> sToProp t)) ∧
---             ∃ h i : List (List (Bool × normalizable α pred)),
---             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
---             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
---             (bcompatible t u) -> w ∈ u :=
---  by
---
---  sorry
+theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
+             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
+             (nToProp n -> (sToProp s -> wToProp w)) ->
+             ∃ t : List (Bool × normalizable α pred),
+             (List.Subset s t) ∧ ¬(w ∈ t) ∧
+             (nToProp n -> (sToProp s <-> sToProp t)) ∧
+             ∃ h i : List (List (Bool × normalizable α pred)),
+             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
+             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
+             (bcompatible t u) -> w ∈ u :=
+  by
+  intro n g hg s hs w hw hhw
+  by_contra ht
+  push_neg at ht
+  sorry
+
+
 
 --theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
 --             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->

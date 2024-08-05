@@ -1,44 +1,57 @@
 import Init.Data.List
-import Std.Data.List
+import Init.Prelude
 import Mathlib.Data.List.Basic
 import Mathlib.Data.List.Defs
 import Mathlib.Data.List.Join
 import Mathlib.Data.Bool.Basic
 import PolySat.basic2
+import PolySat.IList
 open Classical
 
 --universe u
-variable  {α : Type }[h : DecidableEq α]{pred : α -> Prop}
-inductive variadic α pred
+variable  {α : Type}[h : DecidableEq α]
+inductive variadic (α :Type) [h : DecidableEq α]
+(pred : α -> Prop)
   where
   | vatom : α -> (variadic α pred)
-  | vAnd : List (variadic α pred) -> variadic α pred
-  | vOr : List (variadic α pred) -> variadic α pred
+  | vAnd : IList (variadic α pred) -> variadic α pred
+  | vOr : IList (variadic α pred) -> variadic α pred
   | vNot : variadic α pred -> variadic α pred
-deriving DecidableEq
+--deriving DecidableEq
 
-partial def toNormalizable (v : variadic α pred) : normalizable α pred :=
+namespace variadic
+
+ def depth (v : variadic α pred) : Nat :=
   match v with
-  | vatom a => atom a
-  | vAnd [a] => toNormalizable a
-  | vAnd (a :: as) => And (toNormalizable a) (toNormalizable (vAnd as))
-  | vOr [a] => toNormalizable a
-  | vOr (a :: as) => Or (toNormalizable a) (toNormalizable (vOr as))
-  | vNot a => Not (toNormalizable a)
+  | vatom _ => 1
+  | vAnd l => (IList.fold l (fun x y => max (depth x) y) (fun y => depth y)) + 1
+  | vOr l => (IList.fold l (fun x y => max (depth x) y) (fun y => depth y)) + 1
+  | vNot a => depth a + 1
+
+def toNormalizable (v : variadic α pred) : normalizable α pred :=
+  match v with
+  | vatom a => normalizable.atom a
+  | vAnd (IList.single a) => toNormalizable a
+  | vAnd (IList.cons a as) => normalizable.And (toNormalizable a) (toNormalizable (vAnd as))
+  | vOr (IList.single a) => toNormalizable a
+  | vOr (IList.cons a as) => normalizable.Or (toNormalizable a) (toNormalizable (vOr as))
+  | vNot a => normalizable.Not (toNormalizable a)
 
 def subnormalize (v : variadic α pred) : List (List (List (normalizable α pred))) :=
   match v with
-  | vAnd l => ((toNormalizable v
-  :: l.map toNormalizable)
-  :: (l.map (fun x => [Not (toNormalizable v),Not (toNormalizable v)])))
-  :: (l.map subnormalize).Join
-  | vOr l => ((Not (toNormalizable v)
-  :: l.map (fun x => Not toNormalizable x))
-  :: (l.map (fun x => [toNormalizable v, toNormalizable x])))
-  :: (l.map subnormalize).Join
-  | vNot a => [[toNormalizable v,Not (toNormalizable a)],[Not (toNormalizable v, toNormalizable a)]]
-  :: (subnormalize a)
-  | vatom a => [[[atom a],[Not (atom a)]]]
+  | vatom a => [[[normalizable.atom a],[normalizable.Not (normalizable.atom a)]]]
+  | vAnd l => ([toNormalizable v]
+  :: (l.map toNormalizable).toList.1
+  :: (l.map (fun x => [normalizable.Not (toNormalizable v),normalizable.Not (toNormalizable v)])).toList.1)
+  :: (l.map (fun x => subnormalize x )).toList.1.join
+  | vOr l => ([normalizable.Not (toNormalizable v)]
+  :: (l.map (fun x => normalizable.Not (toNormalizable x))).toList.1
+  :: (l.map (fun x => [toNormalizable v, toNormalizable x])).toList.1)
+  :: (l.map (fun x => subnormalize x )).toList.1.join
+  | vNot x => [[toNormalizable v,normalizable.Not (toNormalizable x)],[normalizable.Not (toNormalizable v), toNormalizable x]]
+  :: (subnormalize x )
+  termination_by depth v
+
 
 def normalize (v : variadic α pred) : List (List (List (Bool × normalizable α pred))) :=
   normalizable.booleanize ([[toNormalizable v]] :: (subnormalize v))
