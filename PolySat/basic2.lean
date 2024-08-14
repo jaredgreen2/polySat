@@ -203,24 +203,6 @@ theorem orGateTaut : (a ∧ (a ∨ b)) ∨ (b ∧ (a ∨ b)) ∨ ((¬ a) ∧ (¬
 theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
   by
   simp
-  constructor
-  intro ha
-  constructor
-  intro b hb
-  apply ha
-  left
-  exact hb
-  intro c
-  intro hc
-  apply ha
-  right
-  exact hc
-  intro ha b hb
-  cases hb
-  apply ha.left
-  assumption
-  apply ha.right
-  assumption
 
 theorem any_erase :∀ l : List b,∀ a: b -> Prop,
                      ∀ s : b,s ∈ l -> ¬ (a s) -> (List.any l a <-> List.any (List.erase l s) a) :=
@@ -306,31 +288,27 @@ theorem any_erase :∀ l : List b,∀ a: b -> Prop,
 theorem any_filter : ∀ s : a -> Bool, ∀ l:List a, l.any s <-> (l.filter s).any s :=
   by
   intro s l
-  induction' l with hd t ht
+  induction' l with hd t _
   simp
   unfold List.filter
   cases' Classical.em (s hd) with hsh hnsh
   simp
   nth_rewrite 2 [hsh]
   simp
-  rw [hsh]
   simp
   simp at hnsh
-  simp
   rw [hnsh]
   simp
-  simp at ht
-  exact ht
 
 theorem all_filter (s t : a -> Bool) : ∀ l : List a, l.all s -> (l.filter t).all s :=
   by
   intro l hl
   simp
   intro x hx
-  rw [List.mem_filter] at hx
   simp at hl
+  right
   apply hl
-  exact hx.left
+  exact hx
 
 theorem any_filter_imp (s t : a -> Bool): (∀ x : a, ¬ (s x) -> ¬ (t x)) -> ∀ l : List a,l.any t <-> (l.filter s).any t :=
   by
@@ -338,17 +316,17 @@ theorem any_filter_imp (s t : a -> Bool): (∀ x : a, ¬ (s x) -> ¬ (t x)) -> �
   simp
   induction' l with hd tl ht
   simp
-  unfold List.filter
   cases' Classical.em (s hd) with hsh hnsh
+  simp
   rw [hsh]
   simp
   rw [ht]
+  simp at hnsh
   have hnt : ¬ t hd := by {
     apply hst
+    simp
     exact hnsh
   }
-  simp at hnsh
-  rw [hnsh]
   simp
   simp at hnt
   rw [hnt]
@@ -881,8 +859,7 @@ theorem interl_filter_filter (d : a -> Prop)(e : List a -> Prop):
   unfold interl at hi
   rw [hfe] at hi
   simp at hi
-  apply List.filter_subset at hi
-  exact hi
+  exact hi.left
   unfold interl
   simp
   have hhi : f ∈
@@ -902,8 +879,8 @@ theorem interl_filter_filter (d : a -> Prop)(e : List a -> Prop):
   }
   apply List.mem_inter_of_mem_of_mem
   apply List.inter_subset_left at hhi
-  apply List.filter_subset at hhi
-  exact hhi
+  simp at hhi
+  exact hhi.left
   apply List.inter_subset_right at hhi
   apply ht
   exact hhi
@@ -992,25 +969,23 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
   exact hn
   simp
 
-theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
-             (nToProp n -> (sToProp s -> wToProp w)) ->
-             ∃ t : List (Bool × normalizable α pred),
-             (List.Subset s t) ∧ ¬(w ∈ t) ∧
-             (nToProp n -> (sToProp s <-> sToProp t)) ∧
-             ∃ h i : List (List (Bool × normalizable α pred)),
-             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
-             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
-             (bcompatible t u) -> w ∈ u :=
-  by
-  intro n g hg s hs w hw hhw
-  by_contra ht
-  push_neg at ht
-  sorry
-
-
+--theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
+--             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+--             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+--             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
+--             (nToProp n -> (sToProp s -> wToProp w)) ->
+--             ∃ t : List (Bool × normalizable α pred),
+--             (List.Subset s t) ∧ ¬(w ∈ t) ∧
+--             (nToProp n -> (sToProp s <-> sToProp t)) ∧
+--             ∃ h i : List (List (Bool × normalizable α pred)),
+--             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
+--             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
+--             (bcompatible t u) -> w ∈ u :=
+--  by
+--  intro n g hg s hs w hw hhw
+--  by_contra ht
+--  push_neg at ht
+-- sorry
 
 --theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
 --             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->

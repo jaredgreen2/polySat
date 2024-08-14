@@ -18,7 +18,7 @@ inductive variadic (α :Type) [h : DecidableEq α](pred : α -> Prop)
   | vAnd : IList (variadic α pred) -> variadic α pred
   | vOr : IList (variadic α pred) -> variadic α pred
   | vNot : variadic α pred -> variadic α pred
---deriving DecidableEq
+deriving DecidableEq
 
 namespace variadic
 

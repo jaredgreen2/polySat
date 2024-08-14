@@ -6,7 +6,8 @@ variable {α : Type}
 inductive IList α
   where
   | single : α -> IList α
-  | cons : α -> IList α -> IList α
+  | cons : α -> (IList α) -> (IList α)
+deriving DecidableEq
 
 def IList.fold  (l : IList α)  (f : α -> b -> b)  (g : α -> b) : b :=
   match l with
