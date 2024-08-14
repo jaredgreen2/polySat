@@ -969,23 +969,87 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
   exact hn
   simp
 
---theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
---             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
---             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
---             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
---             (nToProp n -> (sToProp s -> wToProp w)) ->
---             ∃ t : List (Bool × normalizable α pred),
---             (List.Subset s t) ∧ ¬(w ∈ t) ∧
---             (nToProp n -> (sToProp s <-> sToProp t)) ∧
---             ∃ h i : List (List (Bool × normalizable α pred)),
---             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
---             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
---             (bcompatible t u) -> w ∈ u :=
---  by
---  intro n g hg s hs w hw hhw
---  by_contra ht
---  push_neg at ht
--- sorry
+theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
+             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
+             (nToProp n -> (sToProp s -> wToProp w)) ->
+             ∃ t : List (Bool × normalizable α pred),
+             (List.Subset s t) ∧ ¬(w ∈ t) ∧
+             (nToProp n -> (sToProp s <-> sToProp t)) ∧
+             ∃ h i : List (List (Bool × normalizable α pred)),
+             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
+             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
+             (bcompatible t u) -> w ∈ u :=
+  by
+  intro n g hg s hs w hw hhw
+  have extend_compatible : ∀ s : List (Bool × normalizable α pred),
+    ∀ w : Bool × normalizable α pred, w ∉ s ->
+    ∃ t : List  (Bool × normalizable α pred), List.Subset s t ∧ w ∉ t ∧
+    (∀ x : Bool × normalizable α pred, x ∈ t -> x ∈ s ∨  x = w) := by {
+    intros s w hw
+    use s
+    constructor
+    exact List.Subset.refl s
+    constructor
+    exact hw
+    intros x hx
+    left
+    exact hx
+  }
+  have subset_sToProp : ∀ s t : List (Bool × normalizable α pred),
+    List.Subset s t -> (sToProp t -> sToProp s) := by {
+      intros s t hsub ht
+      unfold sToProp
+      simp only [List.all_eq_true, decide_eq_true_eq]
+      intro x hx
+      unfold sToProp at ht
+      simp only [List.all_eq_true, decide_eq_true_eq] at ht
+      apply ht
+      apply hsub
+      apply hx
+  }
+  have c1_weak : ∀ n : List (List (List (Bool × normalizable α pred))),
+    ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+    ∀ s : List (Bool × normalizable α pred), s ∈  g ->
+    ∀ w : (Bool × normalizable α pred), w ∉ s ->
+    (nToProp n -> sToProp s -> wToProp w) ->
+    ∃ t : List (Bool × normalizable α pred),
+    List.Subset s t ∧ w ∉ t ∧
+    (nToProp n -> (sToProp s <-> sToProp t)) := by {
+    intros n g hg s hs w hw hhw
+    obtain ⟨ t, hsub,hwt,ht_extend⟩ := extend_compatible s w hw
+    use t
+    constructor
+    exact hsub
+    constructor
+    exact hwt
+    intro hn
+    constructor
+    intro hs'
+    unfold sToProp
+    simp only [List.all_eq_true, decide_eq_true_eq]
+    intro x hx
+    cases' ht_extend x hx with hxs hxw
+    unfold sToProp at hs'
+    simp only [List.all_eq_true, decide_eq_true_eq] at hs'
+    apply hs'
+    exact hxs
+    have hw' := hhw hn hs'
+    unfold wToProp at hw'
+    rw [← hxw] at hw'
+    exact hw'
+    exact subset_sToProp s t hsub
+  }
+  obtain ⟨ t,hsub,hwt,ht_equiv⟩ := c1_weak n g hg s hs w hw hhw
+  use t
+  constructor
+  exact hsub
+  constructor
+  exact hwt
+  constructor
+  exact ht_equiv
+  sorry
 
 --theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
 --             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
