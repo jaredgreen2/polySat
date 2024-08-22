@@ -58,11 +58,11 @@ def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable �
 def normalize :  normalizable α pred -> List (List (List (normalizable α pred))) := fun o =>
   [[o]] :: (subnormalize o)
 
-@[simp]
---@[reducible]
+--@[simp]
+@[reducible]
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
-  | Not i => (false,i)
+  | Not i =>  (false,i)
   | i => (true,i)
 
 @[aesop 50% unfold]
@@ -946,7 +946,8 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hgi
   apply interl_filter_filter (fun z => !(z ∈ t)) (fun x => bcompatible t x)
   simp
-  unfold instDecidableEqProd at ho
+  --unfold instDecidableEqProd at ho
+  --exact ho
   convert ho
   intro hr
   unfold sToProp at hr
@@ -969,6 +970,264 @@ theorem rule3 : ∀ n : List (List (List (Bool × normalizable α pred))), [] �
   exact hn
   simp
 
+theorem mem_replace_or_mem : ∀ b c x : α,∀ l : List α, x ∈ l.replace b c -> x = c ∨ x ∈ l :=
+  by
+  intro b c x l h
+  induction' l with hd t ht
+  simp at h
+  simp [List.replace] at h
+  cases' Classical.em (b = hd) with hb hbn
+  rw [hb] at h
+  simp at h
+  cases' h with hc ht
+  left
+  exact hc
+  right
+  right
+  exact ht
+  have hnb : (b == hd) = false := by
+  {
+    simp
+    exact hbn
+  }
+  rw [hnb] at h
+  simp at h
+  cases' h with hl hr
+  right
+  simp
+  left
+  exact hl
+  apply ht at hr
+  cases' hr with hrl hrr
+  left
+  exact hrl
+  right
+  right
+  exact hrr
+
+theorem mem_replace_of_eq : ∀ a b : c,∀ l : List c, a ∈ l -> b ∈ l.replace a b :=
+  by
+  intro a b l ha
+  induction' l with hd t ht
+  contradiction
+  simp [List.replace]
+  cases' Classical.em (a = hd) with heq hne
+  rw [heq]
+  simp
+  have hna : (a == hd) = false := by {
+    simp
+    exact hne
+  }
+  rw [hna ]
+  simp
+  right
+  cases' ha with hahd hatl
+  contradiction
+  apply ht
+  assumption
+
+theorem mem_replace_of_mem_of_ne_r : ∀ a b x : α, ∀ l: List α, x ∈ l -> x ≠ a -> x ∈ l.replace a b :=
+  by
+  intro a b x l hx hne
+  induction' l with hd t ht
+  contradiction
+  simp [List.replace]
+  cases' Classical.em (a = hd) with heq hneq
+  rw [heq]
+  cases' hx with hxhd hxtl
+  exfalso
+  apply hne
+  rw [heq]
+  simp
+  right
+  assumption
+  have hna : (a == hd) = false := by {
+    simp
+    exact hneq
+  }
+  rw [hna]
+  simp
+  cases' hx with hxhd hxtl
+  left
+  rfl
+  right
+  apply ht
+  assumption
+
+theorem mem_replace_of_mem_of_ne_l : ∀ a b x : α, ∀ l : List α, x ∈ l.replace a b -> x ≠ b -> x ∈ l :=
+  by
+  sorry
+
+theorem rep1 : ∀ n : List (List (List (Bool × normalizable α pred))),
+              ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+              ∀ s t : List (Bool × normalizable α pred), s ∈ g ->
+              (nToProp n -> (sToProp s <-> sToProp t) ) ->
+              (nToProp n -> (gToProp g <-> gToProp (g.replace s t))) :=
+  by
+  intro n g hg s t hs hnst hn
+  have hst := hnst hn
+  constructor
+  unfold gToProp
+  simp only [List.any_eq_true, decide_eq_true_eq]
+  intro hgg
+  cases' g with hd tl ht
+  contradiction
+  unfold List.replace
+  cases' Classical.em (s = hd) with hsh hsnh
+  rw [hsh]
+  simp
+  rw [← hst]
+  simp at hgg
+  rw [← hsh] at hgg
+  exact hgg
+  have hnsh : (s == hd) = false := by {
+    simp
+    exact hsnh
+  }
+  rw [hnsh]
+  simp
+  simp at hgg
+  cases' hgg with hgg hgg
+  left
+  exact hgg
+  right
+  obtain ⟨ a, hal, har⟩ := hgg
+  cases' Classical.em (a = s) with has hans
+  use t
+  constructor
+  simp at hs
+  have hs : s ∈ tl := by {
+    cases hs
+    contradiction
+    assumption
+  }
+  convert mem_replace_of_eq s t tl hs
+  rw [← hst]
+  rw [← has]
+  exact har
+  use a
+  constructor
+  convert mem_replace_of_mem_of_ne_r s t a tl hal hans
+  exact har
+  unfold gToProp
+  simp only [List.any_eq_true, decide_eq_true_eq]
+  intro hgr
+  induction' g with hd tl ht
+  contradiction
+  obtain ⟨ x,hx,hgs⟩ := hgr
+  unfold List.replace at hx
+  cases' Classical.em (s = hd) with hshd hsnh
+  rw [hshd] at hx
+  simp at hx
+  cases' hx with hx hx
+  use s
+  constructor
+  simp
+  left
+  exact hshd
+  rw [hst]
+  rw [← hx]
+  exact hgs
+  use x
+  constructor
+  right
+  exact hx
+  exact hgs
+  have hnsh : (s == hd) = false := by {
+    simp
+    exact hsnh
+  }
+  rw [hnsh] at hx
+  simp at hx
+  cases' hx with hx hx
+  use x
+  constructor
+  simp
+  left
+  assumption
+  exact hgs
+  cases' Classical.em (x = t) with hxs hxns
+  use s
+  constructor
+  right
+  have hs : s ∈ tl := by {
+    cases hs
+    contradiction
+    assumption
+  }
+  exact hs
+  rw [hst]
+  rw [← hxs]
+  exact hgs
+  use x
+  constructor
+  right
+  have himp : x ≠ t -> x ∈ tl := by {
+    intro hb
+    apply mem_replace_of_mem_of_ne_l s t x tl
+    convert hx
+    exact hb
+  }
+  apply himp
+  rw [← ne_eq] at hxns
+  exact hxns
+  exact hgs
+
+theorem rep2 : ∀ n : List (List (List (Bool × normalizable α pred))),
+              ∀ g h : List (List (Bool × normalizable α pred)), g ∈ n ->
+              (nToProp n -> (gToProp g <-> gToProp h)) -> (nToProp n <-> nToProp (n.replace g h)) :=
+  by
+  intro n g h hg hngh
+  constructor
+  intro hn
+  unfold nToProp
+  simp
+  intro x hx
+  unfold nToProp at hn
+  simp at hn
+  have hxx : x = h ∨ x ∈ n :=  by {
+    apply mem_replace_or_mem g h x n
+    convert hx
+  }
+  cases' (hxx) with hxh hxn
+  rw [hxh]
+  unfold nToProp at hngh
+  simp at hngh
+  have hgh := hngh hn
+  rw [← hgh]
+  apply hn
+  exact hg
+  apply hn
+  exact hxn
+  intro hn
+  unfold nToProp
+  simp
+  intro x hx
+  unfold nToProp at hn
+  simp at hn
+  cases' Classical.em (x = g) with hxg hxng
+  rw [hxg]
+  rw [iff_def'] at hngh
+  rw [imp_and] at hngh
+  obtain ⟨ hnghl,hnghr⟩ := hngh
+  apply hnghl
+  unfold nToProp
+  simp
+  intro y hy
+  cases' Classical.em (y = g) with hyg hyng
+  rw [hyg]
+  apply hn
+  convert mem_replace_of_eq g h n hg --this should not expect a g = h
+  sorry
+  apply hn
+  rw [← ne_eq] at hyng
+  convert mem_replace_of_mem_of_ne_r g h y n hy hyng
+  apply hn
+  convert mem_replace_of_eq g h n hg
+  have hgx := mem_replace_of_mem_of_ne_r g h x n hx hxng
+  apply hn
+  convert hgx
+
 theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
              ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
              ∀ s : List (Bool × normalizable α pred), s ∈ g ->
@@ -983,77 +1242,17 @@ theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
              (bcompatible t u) -> w ∈ u :=
   by
   intro n g hg s hs w hw hhw
-  have extend_compatible : ∀ s : List (Bool × normalizable α pred),
-    ∀ w : Bool × normalizable α pred, w ∉ s ->
-    ∃ t : List  (Bool × normalizable α pred), List.Subset s t ∧ w ∉ t ∧
-    (∀ x : Bool × normalizable α pred, x ∈ t -> x ∈ s ∨  x = w) := by {
-    intros s w hw
-    use s
-    constructor
-    exact List.Subset.refl s
-    constructor
-    exact hw
-    intros x hx
-    left
-    exact hx
-  }
-  have subset_sToProp : ∀ s t : List (Bool × normalizable α pred),
-    List.Subset s t -> (sToProp t -> sToProp s) := by {
-      intros s t hsub ht
-      unfold sToProp
-      simp only [List.all_eq_true, decide_eq_true_eq]
-      intro x hx
-      unfold sToProp at ht
-      simp only [List.all_eq_true, decide_eq_true_eq] at ht
-      apply ht
-      apply hsub
-      apply hx
-  }
-  have c1_weak : ∀ n : List (List (List (Bool × normalizable α pred))),
-    ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-    ∀ s : List (Bool × normalizable α pred), s ∈  g ->
-    ∀ w : (Bool × normalizable α pred), w ∉ s ->
-    (nToProp n -> sToProp s -> wToProp w) ->
-    ∃ t : List (Bool × normalizable α pred),
-    List.Subset s t ∧ w ∉ t ∧
-    (nToProp n -> (sToProp s <-> sToProp t)) := by {
-    intros n g hg s hs w hw hhw
-    obtain ⟨ t, hsub,hwt,ht_extend⟩ := extend_compatible s w hw
-    use t
-    constructor
-    exact hsub
-    constructor
-    exact hwt
-    intro hn
-    constructor
-    intro hs'
-    unfold sToProp
-    simp only [List.all_eq_true, decide_eq_true_eq]
-    intro x hx
-    cases' ht_extend x hx with hxs hxw
-    unfold sToProp at hs'
-    simp only [List.all_eq_true, decide_eq_true_eq] at hs'
-    apply hs'
-    exact hxs
-    have hw' := hhw hn hs'
-    unfold wToProp at hw'
-    rw [← hxw] at hw'
-    exact hw'
-    exact subset_sToProp s t hsub
-  }
-  obtain ⟨ t,hsub,hwt,ht_equiv⟩ := c1_weak n g hg s hs w hw hhw
-  use t
-  constructor
-  exact hsub
-  constructor
-  exact hwt
-  constructor
-  exact ht_equiv
+  by_contra ht
+  have h_rule1 := rule1 n g hg s hs w hw
+
+
+
   sorry
 
 --theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
 --             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
 --             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+--             (nToProp n -> ¬ (sToProp s)) ->
 --             ∃ a : List (Bool × normalizable α pred),
 --             (List.Subset s a) ∧ (nToProp n -> (sToProp s <-> sToProp a)) ∧
 --             ∃ h i : List (List (Bool × normalizable α pred)),h ∈ n ∧
@@ -1063,11 +1262,22 @@ theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
 --  by
 --  sorry
 
-def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
-  let count : Nat := Nat.succ (((n.map
+def wireset (n : List (List (List (Bool × normalizable α pred)))) : List (normalizable α pred) :=
+  ((n.map
   (fun g => (g.map
   (fun s => s.map
-  (fun w => w.snd))).join)).join).dedup).length;
+  (fun w => w.snd))).join)).join).dedup
+
+theorem all_in_wireset : ∀ n : List (List (List (Bool × normalizable α pred))),
+                         ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
+                         ∀ s : List (Bool × normalizable α pred), s ∈ g ->
+                         ∀ w : Bool × normalizable α pred, (nToProp n -> sToProp s -> wToProp w) ->
+                         w.2 ∈ (wireset n) :=
+  by
+  sorry
+
+def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
+  let count : Nat := Nat.succ (wireset n).length;
   (n.map
   (fun g => (g.map
   (fun s => count - (List.length s))).sum)).sum
