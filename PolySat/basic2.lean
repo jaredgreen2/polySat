@@ -1056,7 +1056,32 @@ theorem mem_replace_of_mem_of_ne_r : ∀ a b x : α, ∀ l: List α, x ∈ l -> 
 
 theorem mem_replace_of_mem_of_ne_l : ∀ a b x : α, ∀ l : List α, x ∈ l.replace a b -> x ≠ b -> x ∈ l :=
   by
-  sorry
+  intro a b x l hx hnxb
+  induction' l with hd tl ht
+  unfold List.replace at hx
+  contradiction
+  unfold List.replace at hx
+  cases' Classical.em (a = hd) with hah hnah
+  rw [hah] at hx
+  simp at hx
+  cases hx
+  contradiction
+  simp
+  right
+  assumption
+  have hanh : (a == hd) = false := by {
+    simp
+    exact hnah
+  }
+  rw [hanh ] at hx
+  simp at hx
+  cases' hx with hx hx
+  simp
+  left
+  exact hx
+  right
+  apply ht
+  exact hx
 
 theorem rep1 : ∀ n : List (List (List (Bool × normalizable α pred))),
               ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
