@@ -391,11 +391,18 @@ theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel 
   intro
   apply subnormal
 
+theorem s_nodup : ∀ s : List (Bool × normalizable α pred), ((∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
+  w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup) -> (s.map Prod.snd).Nodup :=
+  by
+  intro s
+  intro hs
+
+  sorry
+
 def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
   ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-  (∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
-  w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup
+  (s.map Prod.snd).Nodup
 
 def makeCoherent (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map
@@ -410,6 +417,7 @@ theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), c
   unfold makeCoherent at hg
   obtain ⟨a, _, ha_transformed_to_g⟩ := List.mem_map.mp hg
   subst ha_transformed_to_g
+  apply s_nodup
   constructor
   intros w x hw heqw
   rw [List.mem_map] at hs
@@ -900,8 +908,6 @@ theorem op2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hgi
   apply interl_filter_filter (fun z => !(z ∈ t)) (fun x => bcompatible t x)
   simp
-  --unfold instDecidableEqProd at ho
-  --exact ho
   convert ho
   intro hr
   unfold sToProp at hr
@@ -1201,7 +1207,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
-            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ sToProp t -> nToProp n)) :=
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map snd).Nodup ∧ (sToProp t -> nToProp n))) :=
   by
   --do induction over the length of n three times
   rw [ all_length_list (fun n => (coherent n ->
@@ -1210,12 +1216,78 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
-            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ sToProp t -> nToProp n)) ) ]
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
   intro m
-  induction' m
+  induction' m with m ih
   --at 0, the universal is vacuous
+  intro n hn hccoh hneg g hg
+  simp at hn
+  rw [hn] at hg
+  contradiction
   --at 1, just use the entries of g
+  clear ih
+  induction' m with m' ih
+  intro n hn
+  simp at hn
+  intro hcoh hneg g hg
+  cases' n with g tl
+  contradiction
+  simp at hn
+  rw [hn] at hg
+  simp at hg
+  rw [hg]
+  intro s hs
+  use s
+  constructor
+  exact List.Subset.refl s
+  constructor
+
+  sorry
+  rw [hn]
+  unfold nToProp
+  simp
+  unfold gToProp
+  intro hhs
+  simp
+  use s
   --at 2, take the union of each entry and that of h that is bcompatible
+  clear ih
+  induction' m' with m'' ih
+  intro n hn
+  simp at hn
+  intro hcoh hneg
+  push_neg at hneg
+  cases' n with g1 n1
+  contradiction
+  cases' n1 with g2 n2
+  simp at hn
+  simp at hn
+  rw [hn]
+  rw [hn] at hneg
+  intro g hg
+  have hhg : g = g1 ∨ g = g2 := by {
+    simp at hg
+    exact hg
+  }
+  cases' Classical.em (g1 = g2) with heq hneq
+  sorry
+  have hneq : (g1 ≠ g2) := by {
+    simp
+    exact hneq
+  }
+  cases' hhg with hg1 hg2
+  rw [← hg1] at hneq
+
+  intro s hs
+  have hhs : s ∈ g1 := by {
+    rw [hg1] at hs
+    exact hs
+  }
+  symm at hneq
+  have hcompat := hneg g hg s hs g2 (by simp) hneq
+  obtain ⟨ _,t,ht,hcompat⟩ := hcompat
+
+
   --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
   -- ∀s, (s ∈ g ∨ s ∈ h) -> ∃ t ∈ cross g h, List.Subset s t
   --the full solution set is (A cross c) cross (B cross C),
