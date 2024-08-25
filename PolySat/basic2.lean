@@ -65,7 +65,6 @@ def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   | Not i =>  (false,i)
   | i => (true,i)
 
-@[aesop 50% unfold]
 def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
 
@@ -76,19 +75,15 @@ def normalizel (n : normalizable α pred) : List (List (List (Bool × normalizab
 def wToProp (w : Bool × normalizable α pred) : Prop :=
   if w.fst then toProp w.snd else ¬(toProp w.snd)
 
-@[aesop 50% unfold]
 def sToProp (s : List (Bool × normalizable α pred)) : Prop :=
   s.all (fun x => wToProp x)
 
-@[aesop 50% unfold]
 def gToProp (g : List (List (Bool × normalizable α pred))) : Prop :=
   g.any (fun x => sToProp x)
 
-@[aesop 50% unfold]
 def nToProp (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   n.all (fun x => gToProp x)
 
-@[aesop 50% unfold]
 def fToProp (n : List (List (List (normalizable α pred)))) : Prop :=
   n.all (fun x => x.any (fun y => y.all (fun z => toProp z)))
 
@@ -443,47 +438,6 @@ theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), c
   obtain ⟨b, _, hb_eq_s⟩ := hs
   rw [← hb_eq_s]
   exact List.nodup_dedup b
-
-theorem property1 : ∀ n : List (List (List (Bool × normalizable α pred))),
-                    ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-                    ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-                    ∀ i : Bool × normalizable α pred, (nToProp n -> sToProp s -> wToProp i) ->
-                    (nToProp n -> (sToProp s <-> sToProp (s.concat i))) :=
-  by
-  intro n g _ s _ w hw hn
-  simp
-  unfold sToProp
-  rw [all_and]
-  constructor
-  intro hss
-  constructor
-  exact hss
-  simp
-  apply hw
-  exact hn
-  unfold sToProp
-  exact hss
-  intro hsw
-  exact hsw.left
-
-theorem property2 : ∀ n : List (List (List (Bool × normalizable α pred))),
-                    ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-                    ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-                    ((nToProp n -> ¬(sToProp s)) -> nToProp n -> (gToProp g <-> gToProp (g.erase s))) :=
-  by
-  intro n g _ s hs hns hn
-  unfold gToProp
-  have hnos : ¬ sToProp s :=
-  by {
-    apply hns
-    exact hn
-  }
-  apply any_erase at g
-  apply g at hs
-  apply hs at hnos
-  rw [hnos]
-  simp
-  congr!
 
 def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
   s.all (fun x => t.all (fun y =>  x.snd == y.snd -> x.fst == y.fst))
@@ -1200,9 +1154,9 @@ theorem rep1 : ∀ n : List (List (List (Bool × normalizable α pred))),
 
 theorem rep2 : ∀ n : List (List (List (Bool × normalizable α pred))),
               ∀ g h : List (List (Bool × normalizable α pred)), g ∈ n ->
-              (nToProp n -> (gToProp g <-> gToProp h)) -> (nToProp n <-> nToProp (n.replace g h)) :=
+              (nToProp n -> (gToProp g <-> gToProp h)) -> (nToProp n -> (nToProp n <-> nToProp (n.replace g h))) :=
   by
-  intro n g h hg hngh
+  intro n g h hg hngh hn
   constructor
   intro hn
   unfold nToProp
@@ -1224,82 +1178,61 @@ theorem rep2 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hg
   apply hn
   exact hxn
-  intro hn
-  unfold nToProp
-  simp
-  intro x hx
-  unfold nToProp at hn
-  simp at hn
-  cases' Classical.em (x = g) with hxg hxng
-  rw [hxg]
-  rw [iff_def'] at hngh
-  rw [imp_and] at hngh
-  obtain ⟨ hnghl,hnghr⟩ := hngh
-  apply hnghl
-  unfold nToProp
-  simp
-  intro y hy
-  cases' Classical.em (y = g) with hyg hyng
-  rw [hyg]
-  apply hn
-  convert mem_replace_of_eq g h n hg --this should not expect a g = h
-  sorry
-  apply hn
-  rw [← ne_eq] at hyng
-  convert mem_replace_of_mem_of_ne_r g h y n hy hyng
-  apply hn
-  convert mem_replace_of_eq g h n hg
-  have hgx := mem_replace_of_mem_of_ne_r g h x n hx hxng
-  apply hn
-  convert hgx
+  intro _
+  exact hn
 
-theorem c1 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-             ∀ w : Bool × normalizable α pred, ¬(w ∈ s) ->
-             (nToProp n -> (sToProp s -> wToProp w)) ->
-             ∃ t : List (Bool × normalizable α pred),
-             (List.Subset s t) ∧ ¬(w ∈ t) ∧
-             (nToProp n -> (sToProp s <-> sToProp t)) ∧
-             ∃ h i : List (List (Bool × normalizable α pred)),
-             h ∈ n ∧ (nToProp n -> (gToProp h <-> gToProp i)) ∧
-             ∀ u : List (Bool × normalizable α pred), u ∈ i ->
-             (bcompatible t u) -> w ∈ u :=
+theorem all_length_list (c : List a -> Prop): (∀ l : List a, c l) <-> (∀ n : Nat,∀ l:List a , l.length = n -> c l) :=
   by
-  intro n g hg s hs w hw hhw
-  by_contra ht
-  have h_rule1 := rule1 n g hg s hs w hw
+  constructor
+  intro hl
+  intro n
+  intro l _
+  apply hl
+  intro hn
+  intro l
+  let n := l.length
+  apply hn n
+  simp
 
-
-
+theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
+             (coherent n ->
+            ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
+            ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
+            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
+            ((∃ w : Bool × normalizable α pred , w ∉ s ∧
+            ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ sToProp t -> nToProp n)) :=
+  by
+  --do induction over the length of n three times
+  rw [ all_length_list (fun n => (coherent n ->
+            ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
+            ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
+            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
+            ((∃ w : Bool × normalizable α pred , w ∉ s ∧
+            ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ sToProp t -> nToProp n)) ) ]
+  intro m
+  induction' m
+  --at 0, the universal is vacuous
+  --at 1, just use the entries of g
+  --at 2, take the union of each entry and that of h that is bcompatible
+  --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
+  -- ∀s, (s ∈ g ∨ s ∈ h) -> ∃ t ∈ cross g h, List.Subset s t
+  --the full solution set is (A cross c) cross (B cross C),
+  --where cross a b = ((Cross a b).filter (fun x => bcompatible x.1 x.2)).map (fun x => (x.1 ++ x.2).dedup),
+  --n = [A , B , C]
+  --at m + 3, do proof by contradiction
+  --with n = (A :: B :: C :: tl)
+  --  ¬ nToProp n -> (¬nToProp (B :: C :: tl)) ∨ (¬nToProp (A :: C :: tl)) ∨ (¬ nToProp (A :: B :: tl))
+  -- then there is a pair g h violating the precondition, in a list of length m + 2
+  --since every pair g h in n is in one of the lists, and vice versa, g h is in n
   sorry
-
---theorem c2 : ∀ n : List (List (List (Bool × normalizable α pred))),
---             ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
---             ∀ s : List (Bool × normalizable α pred), s ∈ g ->
---             (nToProp n -> ¬ (sToProp s)) ->
---             ∃ a : List (Bool × normalizable α pred),
---             (List.Subset s a) ∧ (nToProp n -> (sToProp s <-> sToProp a)) ∧
---             ∃ h i : List (List (Bool × normalizable α pred)),h ∈ n ∧
---             (nToProp n -> (gToProp h <-> gToProp i)) ∧
---             ∀ t : List (Bool × normalizable α pred), t ∈ i ->
---             ¬(bcompatible a t) :=
---  by
---  sorry
 
 def wireset (n : List (List (List (Bool × normalizable α pred)))) : List (normalizable α pred) :=
   ((n.map
   (fun g => (g.map
   (fun s => s.map
   (fun w => w.snd))).join)).join).dedup
-
-theorem all_in_wireset : ∀ n : List (List (List (Bool × normalizable α pred))),
-                         ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
-                         ∀ s : List (Bool × normalizable α pred), s ∈ g ->
-                         ∀ w : Bool × normalizable α pred, (nToProp n -> sToProp s -> wToProp w) ->
-                         w.2 ∈ (wireset n) :=
-  by
-  sorry
 
 def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   let count : Nat := Nat.succ (wireset n).length;
