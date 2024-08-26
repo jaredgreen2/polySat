@@ -13,6 +13,7 @@ import Mathlib.Data.Bool.AllAny
 import Mathlib.Data.Bool.Basic
 import Mathlib.Logic.Basic
 import Batteries.Data.List.Lemmas
+import Batteries.Data.List.Basic
 import Aesop
 open Classical
 
@@ -394,9 +395,12 @@ theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel 
 theorem s_nodup : ∀ s : List (Bool × normalizable α pred), ((∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
   w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup) -> (s.map Prod.snd).Nodup :=
   by
-  intro s
-  intro hs
-
+  intro s hs
+  obtain ⟨ hcond,hnodup⟩ := hs
+  induction' s with hd tl ht
+  simp [List.Nodup]
+  unfold List.Nodup
+  simp?
   sorry
 
 def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
@@ -1204,19 +1208,19 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
              (coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
-            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
+            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
-            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map snd).Nodup ∧ (sToProp t -> nToProp n))) :=
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) :=
   by
   --do induction over the length of n three times
   rw [ all_length_list (fun n => (coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
-            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧ h ≠ g ∧
+            ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
-            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
   intro m
   induction' m with m ih
   --at 0, the universal is vacuous
@@ -1234,6 +1238,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   contradiction
   simp at hn
   rw [hn] at hg
+  have hhg := hg
   simp at hg
   rw [hg]
   intro s hs
@@ -1241,8 +1246,11 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   constructor
   exact List.Subset.refl s
   constructor
-
-  sorry
+  apply hcoh
+  rw [hn]
+  simp
+  rfl
+  exact hs
   rw [hn]
   unfold nToProp
   simp
@@ -1269,23 +1277,20 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     simp at hg
     exact hg
   }
-  cases' Classical.em (g1 = g2) with heq hneq
-  sorry
-  have hneq : (g1 ≠ g2) := by {
-    simp
-    exact hneq
-  }
   cases' hhg with hg1 hg2
-  rw [← hg1] at hneq
-
   intro s hs
   have hhs : s ∈ g1 := by {
     rw [hg1] at hs
     exact hs
   }
-  symm at hneq
-  have hcompat := hneg g hg s hs g2 (by simp) hneq
+  have hcompat := hneg g hg s hs g2 (by simp)
   obtain ⟨ _,t,ht,hcompat⟩ := hcompat
+  use (s.union t)
+  constructor
+  intro x hx
+  convert List.mem_union_left hx t
+
+  sorry
 
 
   --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
