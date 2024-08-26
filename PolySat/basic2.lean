@@ -393,15 +393,106 @@ theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel 
   apply subnormal
 
 theorem s_nodup : ∀ s : List (Bool × normalizable α pred), ((∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
-  w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup) -> (s.map Prod.snd).Nodup :=
+  w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup) <-> (s.map Prod.snd).Nodup :=
   by
-  intro s hs
+  intro s
+  constructor
+  intro hs
   obtain ⟨ hcond,hnodup⟩ := hs
   induction' s with hd tl ht
   simp [List.Nodup]
   unfold List.Nodup
-  simp?
-  sorry
+  simp only [ne_eq, List.map_cons, List.pairwise_cons, List.mem_map, Prod.exists, exists_eq_right]
+  constructor
+  simp only [List.mem_cons, beq_iff_eq, and_imp, Prod.forall] at hcond
+  intro a
+  intro ha1
+  obtain ⟨ a1,ha1⟩ := ha1
+  cases' Classical.em (a1 = hd.1) with ha1e ha1ne
+  rw [List.Nodup] at hnodup
+  simp at hnodup
+  obtain ⟨ hhd, _⟩ := hnodup
+  by_contra hhd2
+  apply hhd
+  have hhdp : hd = (hd.1,hd.2) := by {
+    simp
+  }
+  rw [hhdp]
+  rw [← ha1e]
+  rw [hhd2]
+  exact ha1
+  have hconda := hcond hd.1 hd.2 a1 a (by left;simp) (by right;exact ha1)
+  by_contra ha2
+  apply hconda at ha2
+  apply ha1ne
+  rw [ha2]
+  apply ht
+  intro a b hab h
+  obtain ⟨ ha , hb⟩ := hab
+  exact hcond a b (by constructor;right;exact ha;right;exact hb) h
+  unfold List.Nodup at hnodup
+  simp at hnodup
+  obtain ⟨ _,hnodup⟩ := hnodup
+  simp [List.Nodup]
+  exact hnodup
+  induction' s with hd tl ht
+  simp
+  intro hs
+  constructor
+  intro w x hwx
+  obtain ⟨ hw,hx⟩ := hwx
+  cases' hx with hhx hxt
+  cases' hw with hhw hwt
+  intro _
+  simp
+  simp only [List.map_cons, List.nodup_cons, List.mem_map, Prod.exists, exists_eq_right,
+     not_or] at hs
+  intro hwh2
+  by_contra
+  obtain ⟨ hs1,_⟩ := hs
+  apply hs1
+  use w.1
+  simp at hwh2
+  rw [← hwh2]
+  simp
+  assumption
+  cases' hw with hhw hwt
+  intro hxh2
+  by_contra
+  simp only [List.map_cons, List.nodup_cons, List.mem_map, Prod.exists, exists_eq_right,
+     not_or] at hs
+  obtain ⟨ hs1,_⟩ := hs
+  apply hs1
+  use x.1
+  simp at hxh2
+  rw [hxh2]
+  simp
+  assumption
+  simp only [List.map_cons, List.nodup_cons, List.mem_map, Prod.exists, exists_eq_right,
+     not_or] at hs
+  obtain ⟨_,hs_right⟩ := hs
+  unfold List.Nodup at hs_right
+  simp at hs_right
+  apply ht at hs_right
+  obtain ⟨ hsl,_⟩ := hs_right
+  have hslw := hsl w x
+  apply hslw
+  constructor
+  assumption
+  assumption
+  simp
+  simp only [List.map_cons, List.nodup_cons, List.mem_map, Prod.exists, exists_eq_right,
+     not_or] at hs
+  constructor
+  obtain ⟨hs_left,hs_right⟩ := hs
+  apply ht at hs_right
+  by_contra hhd
+  apply hs_left
+  use hd.1
+  obtain ⟨_,hs_right⟩ := hs
+  apply ht at hs_right
+  obtain ⟨_,hsr⟩ := hs_right
+  exact hsr
 
 def coherent (n : List (List (List (Bool × normalizable α pred)))) : Prop :=
   ∀ g : List (List (Bool × normalizable α pred)), g ∈ n ->
@@ -421,7 +512,7 @@ theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), c
   unfold makeCoherent at hg
   obtain ⟨a, _, ha_transformed_to_g⟩ := List.mem_map.mp hg
   subst ha_transformed_to_g
-  apply s_nodup
+  rw [←  s_nodup]
   constructor
   intros w x hw heqw
   rw [List.mem_map] at hs
@@ -1101,7 +1192,7 @@ theorem rep1 : ∀ n : List (List (List (Bool × normalizable α pred))),
   unfold gToProp
   simp only [List.any_eq_true, decide_eq_true_eq]
   intro hgr
-  induction' g with hd tl ht
+  induction' g with hd tl _
   contradiction
   obtain ⟨ x,hx,hgs⟩ := hgr
   unfold List.replace at hx
@@ -1285,10 +1376,23 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   }
   have hcompat := hneg g hg s hs g2 (by simp)
   obtain ⟨ _,t,ht,hcompat⟩ := hcompat
-  use (s.union t)
+  use (s ++ (t.filter (fun x => x ∉ s)))
   constructor
   intro x hx
-  convert List.mem_union_left hx t
+  simp
+  left
+  exact hx
+  constructor
+  rw [←  s_nodup]
+  constructor
+  simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, beq_iff_eq, and_imp, Prod.forall]
+  rw [hn] at hcoh
+  unfold coherent at hcoh
+  have hcohs := hcoh g hg s hs
+  have hcoht := hcoh g2 (by simp) t ht
+  rw [← s_nodup] at hcohs
+  rw [← s_nodup] at hcoht
 
   sorry
 
