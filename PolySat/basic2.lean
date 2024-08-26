@@ -1295,6 +1295,29 @@ theorem all_length_list (c : List a -> Prop): (∀ l : List a, c l) <-> (∀ n :
   apply hn n
   simp
 
+theorem nodup_filter : ∀ (l : List α)(p : α -> Bool),l.Nodup -> (l.filter p).Nodup :=
+  by
+  intro l p hnodup
+  induction' l with hd tl ht
+  simp
+  rw [List.filter_cons]
+  cases' p hd with hp hp
+  simp
+  apply ht
+  simp at hnodup
+  exact hnodup.2
+  simp only [↓reduceIte, List.nodup_cons,  Bool.not_eq_true]
+  constructor
+  simp at hnodup
+  intro hcontra
+  apply List.mem_of_mem_filter at hcontra
+  apply hnodup.1
+  exact hcontra
+  apply ht
+  simp at hnodup
+  exact hnodup.2
+
+
 theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
              (coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
@@ -1384,15 +1407,199 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hx
   constructor
   rw [←  s_nodup]
-  constructor
-  simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
-    decide_eq_false_iff_not, beq_iff_eq, and_imp, Prod.forall]
   rw [hn] at hcoh
   unfold coherent at hcoh
   have hcohs := hcoh g hg s hs
   have hcoht := hcoh g2 (by simp) t ht
   rw [← s_nodup] at hcohs
   rw [← s_nodup] at hcoht
+  constructor
+  simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, beq_iff_eq, and_imp]
+  intro w x hw hx hsnd
+  unfold bcompatible at hcompat
+  simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+    Bool.forall_bool, or_true,  Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true] at hcompat
+  cases' hw with hw hw
+  cases' hx with hx hx
+  simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hcohs
+  apply hcohs.1
+  exact hw
+  exact hx
+  exact hsnd
+  apply hcompat
+  exact hw
+  exact hx.1
+  exact hsnd
+  cases' hx with hx hx
+  symm
+  apply hcompat
+  exact hx
+  exact hw.1
+  rw [hsnd]
+  simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hcoht
+  apply hcoht.1
+  exact hw.1
+  exact hx.1
+  exact hsnd
+  apply List.Nodup.append
+  exact hcohs.2
+  apply nodup_filter
+  exact hcoht.2
+  intro x hx hxt
+  simp at hxt
+  apply hxt.2
+  exact hx
+  intro hst
+  unfold nToProp
+  simp
+  constructor
+  unfold gToProp
+  simp
+  use s
+  constructor
+  exact hhs
+  unfold sToProp at hst
+  simp only [decide_not, List.all_append, List.all_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, decide_eq_true_eq, decide_implies, dite_eq_ite, ite_not,
+    Bool.if_true_left, Bool.and_eq_true, List.all_eq_true,
+    Bool.or_eq_true] at hst
+  unfold sToProp
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  exact hst.1
+  unfold gToProp
+  simp
+  use t
+  constructor
+  exact ht
+  unfold sToProp
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  unfold sToProp at hst
+  simp only [decide_not, List.all_append, List.all_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, decide_eq_true_eq,  dite_eq_ite, ite_not,
+    Bool.if_true_left, Bool.and_eq_true, List.all_eq_true,
+    Bool.or_eq_true] at hst
+  intro x hx
+  cases' Classical.em (x ∈ s) with hxs hnxs
+  apply hst.1
+  exact hxs
+  apply hst.2
+  exact hx
+  exact hnxs
+  intro s hs
+  have hhs : s ∈ g2 := by {
+    rw [hg2] at hs
+    exact hs
+  }
+  have hcompat := hneg g hg s hs g1 (by simp)
+  obtain ⟨ _,t,ht,hcompat⟩ := hcompat
+  use (s ++ (t.filter (fun x => x ∉ s)))
+  constructor
+  intro x hx
+  simp
+  left
+  exact hx
+  constructor
+  rw [←  s_nodup]
+  rw [hn] at hcoh
+  unfold coherent at hcoh
+  have hcohs := hcoh g hg s hs
+  have hcoht := hcoh g1 (by simp) t ht
+  rw [← s_nodup] at hcohs
+  rw [← s_nodup] at hcoht
+  constructor
+  simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, beq_iff_eq, and_imp]
+  intro w x hw hx hsnd
+  unfold bcompatible at hcompat
+  simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+    Bool.forall_bool, or_true,  Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true] at hcompat
+  cases' hw with hw hw
+  cases' hx with hx hx
+  simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hcohs
+  apply hcohs.1
+  exact hw
+  exact hx
+  exact hsnd
+  apply hcompat
+  exact hw
+  exact hx.1
+  exact hsnd
+  cases' hx with hx hx
+  symm
+  apply hcompat
+  exact hx
+  exact hw.1
+  rw [hsnd]
+  simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hcoht
+  apply hcoht.1
+  exact hw.1
+  exact hx.1
+  exact hsnd
+  apply List.Nodup.append
+  exact hcohs.2
+  apply nodup_filter
+  exact hcoht.2
+  intro x hx hxt
+  simp at hxt
+  apply hxt.2
+  exact hx
+  intro hst
+  unfold nToProp
+  simp
+  rw [and_comm]
+  constructor
+  unfold gToProp
+  simp
+  use s
+  constructor
+  exact hhs
+  unfold sToProp at hst
+  simp only [decide_not, List.all_append, List.all_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, decide_eq_true_eq, decide_implies, dite_eq_ite, ite_not,
+    Bool.if_true_left, Bool.and_eq_true, List.all_eq_true,
+    Bool.or_eq_true] at hst
+  unfold sToProp
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  exact hst.1
+  unfold gToProp
+  simp
+  use t
+  constructor
+  exact ht
+  unfold sToProp
+  simp only [List.all_eq_true, decide_eq_true_eq]
+  unfold sToProp at hst
+  simp only [decide_not, List.all_append, List.all_filter, Bool.not_eq_true',
+    decide_eq_false_iff_not, decide_eq_true_eq,  dite_eq_ite, ite_not,
+    Bool.if_true_left, Bool.and_eq_true, List.all_eq_true,
+    Bool.or_eq_true] at hst
+  intro x hx
+  cases' Classical.em (x ∈ s) with hxs hnxs
+  apply hst.1
+  exact hxs
+  apply hst.2
+  exact hx
+  exact hnxs
+  clear ih
+  intro n hn
+  induction' m'' with m''' ih
+  cases' n with g1 n1
+  contradiction
+  cases' n1 with g2 n2
+  simp at hn
+  cases' n2 with g3 n3
+  simp at hn
+  simp [List.length] at hn
+  rw [hn]
 
   sorry
 
