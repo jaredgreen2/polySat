@@ -1600,15 +1600,33 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   simp at hn
   simp [List.length] at hn
   rw [hn]
-
-  sorry
-
-
-  --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
+  intro hcoh hneg g hg s hs
+  simp at hg
+  push_neg at hneg
+    --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
   -- ∀s, (s ∈ g ∨ s ∈ h) -> ∃ t ∈ cross g h, List.Subset s t
   --the full solution set is (A cross c) cross (B cross C),
   --where cross a b = ((Cross a b).filter (fun x => bcompatible x.1 x.2)).map (fun x => (x.1 ++ x.2).dedup),
   --n = [A , B , C]
+  cases' hg with hg1 hg
+  unfold coherent at hcoh
+  have hcohs := hcoh g (by rw [hg1];simp) s hs
+  rw [← s_nodup] at hcohs
+  simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hcohs
+  rw [hg1] at hs
+
+  let cross12 := g1.bind (fun s1 => (g2.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
+  let cross13 := g1.bind (fun s1 => (g3.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
+  --to prove that there is a t3 from cross13 compatible with each element t2 of cross12,
+  --do proof by contradiction,
+  --show that there would have to be elements w1, w2 of t2 and t3 from s ∈ g1, whatever t3 is, not in the subsets s2 ∈ g2 and s3 ∈ g3, which violate compatibility
+  -- this contradicts the ∀ w ∉ s,∃ t ∈ h, bcompatible s t ∧ w ∉ t part of hneg
+
+  sorry
+
+
+
   --at m + 3, do proof by contradiction
   --with n = (A :: B :: C :: tl)
   --  ¬ nToProp n -> (¬nToProp (B :: C :: tl)) ∨ (¬nToProp (A :: C :: tl)) ∨ (¬ nToProp (A :: B :: tl))
