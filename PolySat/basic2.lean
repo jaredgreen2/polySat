@@ -1617,12 +1617,44 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   rw [hg1] at hs
 
   let cross12 := g1.bind (fun s1 => (g2.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
+  have hcross12 : cross12 = g1.bind (fun s1 => (g2.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1))) := by {
+    dsimp
+  }
   let cross13 := g1.bind (fun s1 => (g3.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
+  have hcross13 : cross13 = g1.bind (fun s1 => (g3.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1))) := by {
+    dsimp
+  }
   --to prove that there is a t3 from cross13 compatible with each element t2 of cross12,
   --do proof by contradiction,
   --show that there would have to be elements w1, w2 of t2 and t3 from s ∈ g1, whatever t3 is, not in the subsets s2 ∈ g2 and s3 ∈ g3, which violate compatibility
   -- this contradicts the ∀ w ∉ s,∃ t ∈ h, bcompatible s t ∧ w ∉ t part of hneg
+  have h_cross12 : ∃ t2 ∈ cross12, s.Subset t2 := by {
+    have hcompat := (hneg g1 (by simp) s hs g2 (by simp)).2
+    obtain ⟨ t2,ht2,hcomp2⟩ := hcompat
+    use s++ t2.filter (fun x => x ∉ s)
+    constructor
+    rw [hcross12]
+    simp
+    use s
+    constructor
+    exact hs
+    use t2
+    intro x hx
+    simp
+    left
+    exact hx
+  }
+  have hcompat : ∀ t2 ∈ cross12 ,∃ t3 ∈ cross13, bcompatible t2 t3 := by {
+    intro t2 ht2
+    by_contra hh
+    push_neg at hh
+    obtain ⟨ s1,hs1,ht2'⟩ := List.mem_bind.mp ht2
+    obtain ⟨ t2', ht2',ht2eq⟩ := List.mem_map.mp ht2'
+    have h_vio : ∀t3 ∈ cross13, ∃ t3t ∈ g3, t3t.Subset t3 ∧  ∃ s3 ∈ g1, s3.Subset t3 ∧ ∃ w1 ∈ s1,∃ w2 ∈ s3, w1 ∉ t2' ∧ w2 ∉ t3t ∧ w1.2 = w2.2 ∧ w1.1 ≠ w2.1 := by
+    {
 
+    }
+  }
   sorry
 
 
