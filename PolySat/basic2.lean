@@ -63,7 +63,7 @@ def normalize :  normalizable α pred -> List (List (List (normalizable α pred)
 @[reducible]
 def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   match n with
-  | Not i =>  (false,i)
+  | Not i => let j := nStrip i; (!j.1,j.2)
   | i => (true,i)
 
 def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
@@ -72,7 +72,6 @@ def booleanize (n : List (List (List (normalizable α pred)))) : List (List (Lis
 def normalizel (n : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
   booleanize (normalize n)
 
-@[aesop 50% unfold]
 def wToProp (w : Bool × normalizable α pred) : Prop :=
   if w.fst then toProp w.snd else ¬(toProp w.snd)
 
@@ -92,19 +91,39 @@ def fToProp (n : List (List (List (normalizable α pred)))) : Prop :=
 theorem nStrip_equiv : ∀ n : normalizable α pred, toProp n <-> wToProp (nStrip n) :=
   by
   intro n
-  unfold nStrip
-  induction n
-  simp
-  unfold wToProp
-  simp
-  simp
-  unfold wToProp
-  simp
-  unfold wToProp
-  simp
-  simp
-  unfold wToProp
-  simp
+  induction' n with a a1 a2 andl andr a1 a2 orl orr a ha
+  unfold normalizable.wToProp
+  simp_all only [↓reduceIte]
+  unfold normalizable.wToProp
+  unfold normalizable.wToProp at andl
+  unfold normalizable.wToProp at andr
+  simp_all only [toProp_and, ↓reduceIte]
+  unfold normalizable.wToProp
+  unfold normalizable.wToProp at orl
+  unfold normalizable.wToProp at orr
+  simp_all only [toProp_or, ↓reduceIte]
+  unfold normalizable.wToProp
+  unfold normalizable.wToProp at ha
+  simp_all only [toProp_not, Bool.not_eq_true']
+  apply Iff.intro
+  · intro a_1
+    simp_all only [iff_false]
+    split
+    next h_1 => simp_all only [Bool.false_eq_true, ↓reduceIte, Decidable.not_not]
+    next h_1 => simp_all only [↓reduceIte, Bool.not_eq_false, not_false_eq_true]
+  · intro a_1
+    apply Aesop.BuiltinRules.not_intro
+    intro a_2
+    simp_all only [iff_true]
+    split at a_1
+    next h_1 =>
+      split at a_2
+      next h_2 => simp_all only [Bool.true_eq_false]
+      next h_2 => simp_all only
+    next h_1 =>
+      split at a_2
+      next h_2 => simp_all only [Bool.true_eq_false, not_false_eq_true, not_true_eq_false]
+      next h_2 => simp_all only [not_true_eq_false]
 
 theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fToProp n <-> nToProp (booleanize n) :=
   by
@@ -116,7 +135,6 @@ theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fTo
   unfold booleanize
   simp
   unfold gToProp
-  --aesop?
   simp
   unfold sToProp
   simp
@@ -542,6 +560,7 @@ theorem coherency : ∀ n : List (List (List (Bool × normalizable α pred))), c
   rw [← hb_eq_s]
   exact List.nodup_dedup b
 
+@[aesop 90% unfold]
 def bcompatible (s : List (Bool × normalizable α pred)) (t : List (Bool × normalizable α pred)) : Bool :=
   s.all (fun x => t.all (fun y =>  x.snd == y.snd -> x.fst == y.fst))
 
@@ -1317,6 +1336,26 @@ theorem nodup_filter : ∀ (l : List α)(p : α -> Bool),l.Nodup -> (l.filter p)
   simp at hnodup
   exact hnodup.2
 
+theorem or_and_not (a b : Prop): a ∨ (b ∧ ¬ a) <-> a ∨ b :=
+  by
+  constructor
+  swap
+  intro ab
+  cases' Classical.em (a) with ha na
+  left
+  exact ha
+  right
+  cases' ab with ha hb
+  contradiction
+  constructor
+  exact hb
+  exact na
+  intro abna
+  cases' abna with ha bna
+  left
+  exact ha
+  right
+  exact bna.1
 
 theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
              (coherent n ->
@@ -1325,20 +1364,22 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
+            (∀ g ∈ n, ∀ s ∈ g, ∃ no : normalizable α pred, (true,no) ∈ s ∧ ∀ t ∈ g, t ≠ s -> (false, no) ∈ t ) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) :=
   by
   --do induction over the length of n three times
-  rw [ all_length_list (fun n => (coherent n ->
+  rw [ all_length_list (fun n =>  (coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
+            (∀ g ∈ n, ∀ s ∈ g, ∃ no : normalizable α pred, (true,no) ∈ s ∧ ∀ t ∈ g, t ≠ s -> (false, no) ∈ t ) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
   intro m
   induction' m with m ih
   --at 0, the universal is vacuous
-  intro n hn hccoh hneg g hg
+  intro n hn hccoh hneg hex g hg
   simp at hn
   rw [hn] at hg
   contradiction
@@ -1347,7 +1388,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   induction' m with m' ih
   intro n hn
   simp at hn
-  intro hcoh hneg g hg
+  intro hcoh hneg hex g hg
   cases' n with g tl
   contradiction
   simp at hn
@@ -1377,7 +1418,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   induction' m' with m'' ih
   intro n hn
   simp at hn
-  intro hcoh hneg
+  intro hcoh hneg hex
   push_neg at hneg
   cases' n with g1 n1
   contradiction
@@ -1600,14 +1641,13 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   simp at hn
   simp [List.length] at hn
   rw [hn]
-  intro hcoh hneg g hg s hs
+  intro hcoh hneg hex g hg s hs
   simp at hg
   push_neg at hneg
-    --at 3, have that (∀ g h,(∀ s ∈ g, ∃ t ∈ h, bcompatible s t) ∧ (∀ t ∈ h, ∃ s ∈ g, bcompatible s t)) ->
-  -- ∀s, (s ∈ g ∨ s ∈ h) -> ∃ t ∈ cross g h, List.Subset s t
-  --the full solution set is (A cross c) cross (B cross C),
-  --where cross a b = ((Cross a b).filter (fun x => bcompatible x.1 x.2)).map (fun x => (x.1 ++ x.2).dedup),
-  --n = [A , B , C]
+    --at 3,
+    -- show that if an entry s ∈ g is compatible with t ∈ h, the element of t assured by hex, with its fst false, is not in s, this is an equivalence.
+    -- then for that (true, w) from s, (false, w) would not be in t, ergo (applying hneg) there is a entry u in a third compatible with t also without (false, w),
+    -- and u would also be compatible with s
   cases' hg with hg1 hg
   unfold coherent at hcoh
   have hcohs := hcoh g (by rw [hg1];simp) s hs
@@ -1615,46 +1655,8 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
     imp_false, true_and, Bool.true_eq_false, and_true] at hcohs
   rw [hg1] at hs
+  sorry
 
-  let cross12 := g1.bind (fun s1 => (g2.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
-  have hcross12 : cross12 = g1.bind (fun s1 => (g2.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1))) := by {
-    dsimp
-  }
-  let cross13 := g1.bind (fun s1 => (g3.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1)))
-  have hcross13 : cross13 = g1.bind (fun s1 => (g3.filter (fun s2 => bcompatible s1 s2)).map (fun s2 => s1 ++ s2.filter (fun x => x ∉ s1))) := by {
-    dsimp
-  }
-  --to prove that there is a t3 from cross13 compatible with each element t2 of cross12,
-  --do proof by contradiction,
-  --show that there would have to be elements w1, w2 of t2 and t3 from s ∈ g1, whatever t3 is, not in the subsets s2 ∈ g2 and s3 ∈ g3, which violate compatibility
-  -- this contradicts the ∀ w ∉ s,∃ t ∈ h, bcompatible s t ∧ w ∉ t part of hneg
-  have h_cross12 : ∃ t2 ∈ cross12, s.Subset t2 := by {
-    have hcompat := (hneg g1 (by simp) s hs g2 (by simp)).2
-    obtain ⟨ t2,ht2,hcomp2⟩ := hcompat
-    use s++ t2.filter (fun x => x ∉ s)
-    constructor
-    rw [hcross12]
-    simp
-    use s
-    constructor
-    exact hs
-    use t2
-    intro x hx
-    simp
-    left
-    exact hx
-  }
-  have hcompat : ∀ t2 ∈ cross12 ,∃ t3 ∈ cross13, bcompatible t2 t3 := by {
-    intro t2 ht2
-    by_contra hh
-    push_neg at hh
-    obtain ⟨ s1,hs1,ht2'⟩ := List.mem_bind.mp ht2
-    obtain ⟨ t2', ht2',ht2eq⟩ := List.mem_map.mp ht2'
-    have h_vio : ∀t3 ∈ cross13, ∃ t3t ∈ g3, t3t.Subset t3 ∧  ∃ s3 ∈ g1, s3.Subset t3 ∧ ∃ w1 ∈ s1,∃ w2 ∈ s3, w1 ∉ t2' ∧ w2 ∉ t3t ∧ w1.2 = w2.2 ∧ w1.1 ≠ w2.1 := by
-    {
-
-    }
-  }
   sorry
 
 
