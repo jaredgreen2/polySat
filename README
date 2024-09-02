@@ -1,29 +1,21 @@
 PolySat
 
-My attempt to prove that P = NP by showing a program for solving instances of Circuit-SAT. the algorithm runs in polynomial time and cannot 'solve' an unsolvable instance. the proof exhibited in basic.lean labeled solveComplete says that if satisfiable? returns true, there is a solution.
+My attempt to prove that P = NP by showing a program for solving instances of Circuit-SAT. the algorithm runs in polynomial time and cannot 'solve' an unsolvable instance. the proof exhibited in basic2.lean labeled solveComplete says that if satisfiable? returns true, there is a solution.
 
 the folder NP will contain a few solvers for problem types in NP based on that algorithm.
+ the algorithm is called extended speculative collapse. 
+the algorithm starts by turning each part of the circuit to a dynamic-width truth table relating inputs to outputs. the first one states the assumption that the ultimate output is true, while the others represent tautologies. the result is what i call the gate normal form. this form is equivalent to the original formula. 
+the 'extended' part means 
+i also make sure each entry has an element that is true in that one but false in the other entries of the same table 
+the 'speculative' part means, before trying subsolutions, each state incorporates what would have to be the case if it was committed to 
+the 'collapse' part means its a form of the wave function collapse algorithm 
 
-the algorithm starts by turning each part of the circuit to a dynamic-width truth table relating inputs to outputs. the first one states the assumption that the ultimate output is true, while the others represent tautologies. the result is what i call the gate normal form. this form is equivalent to the original formula.
-then the normal form is rewritten based on sequences of joins of the tables which aren't committted to, until it can't anymore. 
-(a join is when an attempt is made to match every entry of one table to every entry of another, keeping only and all the matches)
+by the end of the speculate part, every state has all the elements that are in every compatible row of any other table. that includes the element for each incompatible state set to false, specifically those of compatible states are not set to false
+for any three tables, each entry s of the first has a compatible state t of the second. the index element of t is not set to false in s. therefore there exists an element u of the third, compatible with s, where the index of t is also not set to false. s,t,u are thus mutually compatible. their combination is a solution for just three tables 
+for more than three tables, the solution set is that where the first two tables are made into their cross product.
 
-the algorithm implements the following rules:
 
-(here the join distrbutes the table on the right over the table on the left, and we only actually alter the one on the left)
-1: (& (...,A,...)) join (|| (...,(& (...,!A,...),...)))      ~> (& (...,A,...)) join (||(..., ____ ...)) --the underscores indicate the state is no longer present
-2: (& (...)) join (|| ())                                    ~> ()
-3: (& (...)) join (|| ((& (...,A,...)),(& (...,A,...),...))) ~> (& (...,A)) join (|| ((& (...,A,...)),(& (...,A,...),...))) --where all entries of the second contain A, which isn't in the first
-4: (|| (...,(),...))                                         ~> (|| (...,___...))
-5: (|| (...,& (...,A,...,!A,...),...))                       ~> (|| (...,___...)) --apply immediately and never again
-6: (|| (L))                                                  ~> L --where none of the other rules are applicable
-7: (|| ())                                                   ~> false
-
-this set consists of equivalences. it is noetherian and thus terminating. since they are all theorems of classical logic, its also sound. other SAT solvers' approach to the same form of problem would be to ignore rule 3, replace it with
-((||(...A...)) join (||(...A...)) join (||(...)) join...) ~> A join (||(...)) ... --where !A is not present in either formula, the clauses containing A are collapsed.
-and simulate the join of all the gates by branching on the states and backtracking, which is already complete but requires exponnential time. also this rule doesn't generally preserve the set of solutions, nor is it required for completeness.
-i'm aware though that the completeness of the set doesn't immediately follow from the aforementioned completeness of that used by other solvers, which relies on the branching and backtracking. my algorithm doesnt branch, the set doesn't require it. the gate normal form enables each state to accomodate its implications, and (so i claim) the algorithm finds all of them.
-when a state is picked(assumed) after the reduction is completed, the reduction is done again, removing all the impossible states accordingly. if im correct, it should already be the case that the state assumed is compatible with at least one state per clause, or else it would have been eliminated and thus not picked. after the second reduction the first state has been joined to every remaining state and committed to. then the process is repeated for all the clauses, and if im right, at no point do any of them end up empty, so at the end of that process a solution is found.
+when a state is picked(assumed) after the speculatte step is completed, the speculate step is done again, removing all the impossible states accordingly. 
 
 
 author: Jared Loren Green. 2024. United States. this and all other published works by me are released under permissive license. contributions welcome.

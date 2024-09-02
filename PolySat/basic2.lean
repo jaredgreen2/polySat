@@ -14,6 +14,7 @@ import Mathlib.Data.Bool.Basic
 import Mathlib.Logic.Basic
 import Batteries.Data.List.Lemmas
 import Batteries.Data.List.Basic
+import PolySat.iList
 import Aesop
 open Classical
 
@@ -48,16 +49,15 @@ theorem toProp_or : toProp (Or n₁ n₂) ↔ toProp n₁ ∨ toProp n₂ := Iff
 @[simp]
 theorem toProp_atom {a : α} : toProp (atom a : normalizable α pred) ↔ pred a := Iff.rfl
 
+def index (g : List ({l : List (Bool × normalizable α pred)//l ≠ []})) : List ( normalizable α pred) :=
+  g.map (fun x => IList.fold (IList.ofList x)
+  (fun y z => And (if y.1 = false then Not y.2 else y.2) z)
+  (fun y => if y.1 = false then Not y.2 else y.2))
 
-def subnormalize (n : (normalizable α pred)) : List (List (List (normalizable α pred))) :=
-  match n with
-  | Or a b => [[a,n],[b,n],[Not a,Not b, Not n]] :: (List.append (subnormalize a) (subnormalize b))
-  | And a b => [[a,b,n],[Not a,Not n],[Not b,Not n]] :: (List.append (subnormalize a) (subnormalize b))
-  | Not i => [[n,Not i],[Not n, i]] :: (subnormalize i)
-  | atom _ => [[[n],[Not n]]]
-
-def normalize :  normalizable α pred -> List (List (List (normalizable α pred))) := fun o =>
-  [[o]] :: (subnormalize o)
+def extend (g : List ({l : List (Bool × normalizable α pred) // l ≠ []})) : List (List (Bool × normalizable α pred)) :=
+  let gindex := index g;
+  let zindex := List.zip gindex g ;
+  zindex.map (fun x => (gindex.map (fun y => (y==x.1,y))) ++ x.2.1)
 
 --@[simp]
 @[reducible]
@@ -66,11 +66,23 @@ def nStrip (n : normalizable α pred) : Bool × normalizable α pred :=
   | Not i => let j := nStrip i; (!j.1,j.2)
   | i => (true,i)
 
-def booleanize (n : List (List (List (normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
-  n.map (fun x => x.map (fun y => y.map (fun z => nStrip z)))
+def subnormalize (n : (normalizable α pred)) : List (List (List (Bool × normalizable α pred))) :=
+  match n with
+  | Or a b => [[nStrip a,nStrip b,nStrip n],
+  [nStrip a,nStrip (Not b),nStrip n],
+  [nStrip (Not a),nStrip b,nStrip n],
+  [nStrip (Not a),nStrip (Not b),nStrip (Not n)]] :: (List.append (subnormalize a) (subnormalize b))
+  | And a b => [[nStrip a,nStrip b,nStrip n],
+  [nStrip (Not a),nStrip b,nStrip (Not n)],
+  [nStrip a,nStrip (Not b),nStrip (Not n)],
+  [nStrip (Not a),nStrip (Not b),nStrip (Not n)]] :: (List.append (subnormalize a) (subnormalize b))
+  | Not i => [[nStrip n,nStrip (Not i)],[nStrip (Not n),nStrip i]] :: (subnormalize i)
+  | atom _ => [[[(true,n)],[(false,n)]]]
 
-def normalizel (n : normalizable α pred) : List (List (List (Bool × normalizable α pred))) :=
-  booleanize (normalize n)
+def normalize :  normalizable α pred -> List (List (List (Bool × normalizable α pred))) := fun o =>
+  [[(true,o)]] :: (subnormalize o)
+
+
 
 def wToProp (w : Bool × normalizable α pred) : Prop :=
   if w.fst then toProp w.snd else ¬(toProp w.snd)
@@ -125,21 +137,6 @@ theorem nStrip_equiv : ∀ n : normalizable α pred, toProp n <-> wToProp (nStri
       next h_2 => simp_all only [Bool.true_eq_false, not_false_eq_true, not_true_eq_false]
       next h_2 => simp_all only [not_true_eq_false]
 
-theorem booleanize_eqiv : ∀ n : List (List (List (normalizable α pred))), fToProp n <-> nToProp (booleanize n) :=
-  by
-  intro n
-  unfold nToProp
-  simp
-  unfold fToProp
-  simp
-  unfold booleanize
-  simp
-  unfold gToProp
-  simp
-  unfold sToProp
-  simp
-  simp [nStrip_equiv]
-
 theorem w_neg :∀ a : Bool × normalizable α pred, wToProp (!a.1,a.2) <-> ¬ (wToProp a) :=
   by
   intro a
@@ -159,59 +156,6 @@ theorem w_neg :∀ a : Bool × normalizable α pred, wToProp (!a.1,a.2) <-> ¬ (
   rw [Classical.not_not]
   assumption
   rw [Bool.eq_false_iff]
-  assumption
-
-theorem andGateTaut :  (a ∧ b ∧ (a ∧ b)) ∨ (¬ a ∧ ¬(a ∧ b)) ∨ (¬ b ∧ ¬(a ∧ b)) :=
-  by
-  cases Classical.em a
-  cases Classical.em b
-  left
-  constructor
-  assumption
-  constructor
-  assumption
-  constructor
-  assumption
-  assumption
-  right
-  right
-  constructor
-  assumption
-  push_neg
-  intro
-  assumption
-  right
-  left
-  constructor
-  assumption
-  rw [and_comm]
-  push_neg
-  intro
-  assumption
-
-theorem orGateTaut : (a ∧ (a ∨ b)) ∨ (b ∧ (a ∨ b)) ∨ ((¬ a) ∧ (¬b) ∧ ¬(a ∨ b)) :=
-  by
-  cases Classical.em a
-  left
-  constructor
-  assumption
-  left
-  assumption
-  right
-  cases Classical.em b
-  left
-  constructor
-  assumption
-  right
-  assumption
-  right
-  constructor
-  assumption
-  constructor
-  assumption
-  push_neg
-  constructor
-  assumption
   assumption
 
 theorem all_and : List.all ( a ++ b) c <-> List.all a c ∧ List.all b c :=
@@ -347,68 +291,142 @@ theorem any_filter_imp (s t : a -> Bool): (∀ x : a, ¬ (s x) -> ¬ (t x)) -> �
   simp
   rw [ht]
 
-theorem subnormal : ∀ n : normalizable α pred, fToProp (subnormalize n) :=
+theorem subnormal : ∀ n : normalizable α pred, nToProp (subnormalize n) :=
   by
   intro n
   induction' n with a b c d e f g i j k l
   unfold subnormalize
-  unfold fToProp
+  unfold nToProp
+  simp
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  unfold wToProp
+  simp
+  exact Classical.em (toProp (atom a))
+  unfold nToProp
   simp
   unfold subnormalize
   simp
-  unfold fToProp
-  rw [List.all_cons]
-  simp only [List.any_cons, List.all_cons, List.all_nil, Bool.and_true, List.any_nil,
-    Bool.or_false, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
-    List.mem_append, List.any_eq_true,toProp_not,toProp_and]
   constructor
-  rw [toProp_not]
-  rw [toProp_and]
-  exact andGateTaut
-  rw [all_and]
-  constructor
-  assumption
-  assumption
-  unfold fToProp
-  unfold subnormalize
-  rw [List.all_cons]
-  simp only [List.any_cons, List.all_cons, toProp_or, List.all_nil, Bool.and_true, toProp_not,
-    List.any_nil, Bool.or_false, List.append_eq, Bool.and_eq_true, Bool.or_eq_true,
-    decide_eq_true_eq, List.mem_append, List.any_eq_true]
-  constructor
-  rw [toProp_not]
-  rw [toProp_or]
-  exact orGateTaut
-  rw [all_and]
-  constructor
-  assumption
-  assumption
-  unfold fToProp
-  unfold subnormalize
-  rw [List.all_cons]
-  simp only [List.any_cons, List.all_cons, toProp_not, List.all_nil, Bool.and_true, Bool.and_self,
-    not_not, List.any_nil, Bool.or_false, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq,
-     List.any_eq_true]
-  constructor
-  cases Classical.em (toProp k)
-  right
-  assumption
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  simp
+  cases' Classical.em (toProp b) with hb hnb
+  cases' Classical.em (toProp c) with hc hnc
   left
-  assumption
-  unfold fToProp at l
+  simp_all only [and_self]
+  right
+  right
+  left
+  simp_all only [not_false_eq_true, imp_self, and_self]
+  cases' Classical.em (toProp c) with hc hnc
+  right
+  left
+  simp_all only [not_false_eq_true, not_true_eq_false, false_implies, and_self]
+  right
+  right
+  right
+  simp_all only [not_false_eq_true, not_true_eq_false, false_implies, and_self]
+  intro x
+  rw [or_imp]
+  constructor
+  unfold nToProp at d
+  simp at d
+  apply d
+  unfold nToProp at e
+  simp at e
+  apply e
+  unfold subnormalize
+  unfold nToProp
+  simp
+  constructor
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  cases' Classical.em (toProp f) with hf hnf
+  cases' Classical.em (toProp g) with hg hng
+  simp_all only [toProp_or, or_self, and_self, toProp_not, not_true_eq_false, and_true, and_false, not_or, or_false]
+  simp_all only [toProp_or, or_false, and_true, and_false, toProp_not, not_false_eq_true, and_self, not_true_eq_false,
+    not_or, or_self, or_true]
+  cases' Classical.em (toProp g) with hg nng
+  simp_all only [toProp_or, or_true, and_self, and_true, toProp_not, not_true_eq_false, not_false_eq_true, not_or,
+    and_false, or_false]
+  simp_all only [toProp_or, or_self, and_self, toProp_not, not_false_eq_true, and_false, not_or, or_true]
+  constructor
+  unfold nToProp at i
+  simp at i
+  exact i
+  unfold nToProp at j
+  simp at j
+  exact j
+  unfold nToProp
+  unfold subnormalize
+  simp
+  constructor
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  rw [← nStrip_equiv]
+  simp
+  cases' Classical.em (toProp k) with hk hnk
+  right
+  exact hk
+  left
+  exact hnk
+  unfold nToProp at l
+  simp at l
   exact l
 
-theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalizel n) :=
+theorem normal : ∀ n : normalizable α pred, toProp n <-> nToProp (normalize n) :=
   by
   intro n
-  unfold normalizel
   unfold normalize
-  rw [← booleanize_eqiv]
-  unfold fToProp
-  simp only [List.all_cons, List.any_cons, List.all_nil, Bool.and_true, List.any_nil, Bool.or_false,
-    Bool.and_eq_true, decide_eq_true_eq, List.any_eq_true, iff_self_and]
-  intro
-  apply subnormal
+  constructor
+  unfold nToProp
+  simp
+  intro hn
+  constructor
+  unfold gToProp
+  simp
+  unfold sToProp
+  simp
+  unfold wToProp
+  simp
+  exact hn
+  apply subnormal at n
+  unfold nToProp at n
+  simp at n
+  exact n
+  unfold nToProp
+  simp
+  intro hg _
+  unfold gToProp at hg
+  simp at hg
+  unfold sToProp at hg
+  simp at hg
+  unfold wToProp at hg
+  simp at hg
+  exact hg
 
 theorem s_nodup : ∀ s : List (Bool × normalizable α pred), ((∀ w : Bool × normalizable α pred,∀ x : Bool × normalizable α pred, w ∈ s ∧ x ∈ s ->
   w.snd == x.snd -> w.fst == x.fst) ∧ s.Nodup) <-> (s.map Prod.snd).Nodup :=
@@ -771,7 +789,6 @@ def interl (l : List (List a)) [DecidableEq a] : List a :=
   | [] => []
   | a :: [] => a
   | (a :: as) => List.inter a (interl as)
-
 
 theorem interl_all (s : a -> Prop) : ∀ l : List (List a),
           l.any (fun x => x.all (fun y => s y)) -> ∀ b ∈ interl l, s b :=
@@ -1375,9 +1392,18 @@ theorem bcompatible_symm : ∀s t : List (Bool × normalizable α pred), bcompat
   symm
   exact hs y hy x hx hxy
 
+theorem filter_disjoint : ∀ l m: List α,List.Disjoint l (m.filter (fun x => x ∉ l)) :=
+  by
+  intro l m
+  unfold List.Disjoint
+  intro x hx
+  simp
+  intro _
+  exact hx
 
 theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             (coherent n ->
+             ((∀ g ∈ n, ∀ s ∈ g, s ≠ []) ->
+             coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
@@ -1387,7 +1413,8 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) :=
   by
   --do induction over the length of n three times
-  rw [ all_length_list (fun n =>  (coherent n ->
+  rw [ all_length_list (fun n =>  ((∀ g ∈ n, ∀ s ∈ g, s ≠ []) ->
+             coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
@@ -1395,17 +1422,16 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ no : normalizable α pred, (true,no) ∈ s ∧ ∀ t ∈ g, t ≠ s -> (false, no) ∈ t ) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
-  intro m
+  intro m n hn hfil
   induction' m with m ih
   --at 0, the universal is vacuous
-  intro n hn hccoh hneg hex g hg
+  intro hccoh hneg hex g hg
   simp at hn
   rw [hn] at hg
   contradiction
   --at 1, just use the entries of g
   clear ih
   induction' m with m' ih
-  intro n hn
   simp at hn
   intro hcoh hneg hex g hg
   cases' n with g tl
@@ -1435,7 +1461,6 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   --at 2, take the union of each entry and that of h that is bcompatible
   clear ih
   induction' m' with m'' ih
-  intro n hn
   simp at hn
   intro hcoh hneg hex
   push_neg at hneg
@@ -1650,7 +1675,6 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hx
   exact hnxs
   clear ih
-  intro n hn
   induction' m'' with m''' ih
   --at 3,
     -- show that if an entry s ∈ g is compatible with t ∈ h, the element of t assured by hex, with its fst false, is not in s, this is an equivalence.
@@ -2365,11 +2389,97 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exfalso
   apply hnst.2
   exact hxt
-  --at m + 3, do proof by contradiction
-  --with n = (A :: B :: C :: tl)
-  --  ¬ nToProp n -> (¬nToProp (B :: C :: tl)) ∨ (¬nToProp (A :: C :: tl)) ∨ (¬ nToProp (A :: B :: tl))
-  -- then there is a pair g h violating the precondition, in a list of length m + 2
-  --since every pair g h in n is in one of the lists, and vice versa, g h is in n
+  --at m + 3,
+  --construct (extend (cross g1 g2) :: g3 :: tl), show it satisfies the preconditions,
+  --and that the candidate solutions solve n
+  intro hcoh hneg hex
+  cases' n with g1 n1
+  contradiction
+  cases' n1 with g2 n2
+  simp at hn
+  cases' n2 with g3 tl
+  simp at hn
+  intro g
+  let cross12 := (g1.bind
+    (fun x => (g2.filter
+      (fun y => bcompatible x y)).map
+        (fun y => x ++ (y.filter (fun z => z ∉ y)))))
+  have hcross12 : cross12 = (g1.bind
+    (fun x => (g2.filter
+      (fun y => bcompatible x y)).map
+        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
+    dsimp
+  }
+  let cross12source : List ({l : List (Bool × normalizable α pred)// l ≠ []}) := (cross12.attach.map (fun x => ⟨x.1, (by
+    have property := x.2
+    have hhcross12 : x.1 ∈ (g1.bind
+    (fun x => (g2.filter
+      (fun y => bcompatible x y)).map
+        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
+      rw [← hcross12]
+      exact property
+    }
+    simp only [decide_not, List.mem_bind,List.mem_map] at hhcross12
+    obtain ⟨ s,hs,ht⟩ := hhcross12
+    obtain ⟨ t, ht,hht⟩ := ht
+    have hx := hfil g1 (by simp) s hs
+    have hax := List.append_ne_nil_of_left_ne_nil hx (List.filter (fun z ↦ !decide (z ∈ t)) t)
+    rw [hht] at hax
+    exact hax )⟩ ))
+  have hcross12source : cross12source = (cross12.attach.map (fun x => ⟨x.1, (by
+    have property := x.2
+    have hhcross12 : x.1 ∈ (g1.bind
+    (fun x => (g2.filter
+      (fun y => bcompatible x y)).map
+        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
+      rw [← hcross12]
+      exact property
+    }
+    simp only [decide_not, List.mem_bind,List.mem_map] at hhcross12
+    obtain ⟨ s,hs,ht⟩ := hhcross12
+    obtain ⟨ t, ht,hht⟩ := ht
+    have hx := hfil g1 (by simp) s hs
+    have hax := List.append_ne_nil_of_left_ne_nil hx (List.filter (fun z ↦ !decide (z ∈ t)) t)
+    rw [hht] at hax
+    exact hax )⟩ )) := by {
+    dsimp
+  }
+  let cross12index := index cross12source
+  have hcross12index : cross12index = index cross12source := by {
+    dsimp
+  }
+  let cross12extend := extend cross12source
+  have hcross12extend : cross12extend = extend cross12source := by {
+    dsimp
+  }
+  let cross12zip := List.zip (index cross12source) cross12
+  let n4 := (cross12extend :: ((g3 :: tl).map
+            (fun x => x.map
+              (fun y => cross12zip.foldr
+                (fun z w => if ! (bcompatible y z.2)
+                              then (false,z.1) :: w
+                              else if cross12.all (fun v => bcompatible y v -> v = z.2)
+                                     then (true, z.1) :: w
+                                     else w
+                ) y
+              )
+            )))
+  have hn4 : n4 = (cross12extend :: ((g3 :: tl).map
+            (fun x => x.map
+              (fun y => cross12zip.foldr
+                (fun z w => if ! (bcompatible y z.2)
+                              then (false,z.1) :: w
+                              else if cross12.all (fun v => bcompatible y v -> v = z.2)
+                                     then (true, z.1) :: w
+                                     else w
+                ) y
+              )
+            ))) := by {
+    rfl
+  }
+  --show that the preconditions are satisfied by n4
+  --apply ih
+  --use the solutions so assured
 
   sorry
 

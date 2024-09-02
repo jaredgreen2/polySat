@@ -15,7 +15,7 @@ require mathlib from git
   "https://github.com/leanprover-community/mathlib4.git"
 
 require «Duper» from git "https://github.com/leanprover-community/duper.git" @ "v0.0.15"
-require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.5.1"
+--require LeanCopilot from git "https://github.com/lean-dojo/LeanCopilot.git" @ "v1.5.1"
 
 
 @[default_target]

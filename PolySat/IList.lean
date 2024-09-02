@@ -25,7 +25,10 @@ def IList.toList : IList α -> {l : List α // l ≠ []}
 def IList.ofList (l: {l : List α // l ≠ []}) : IList α :=
   match l with
   | ⟨ [x], _ ⟩ => .single x
-  | ⟨ x :: xs@(y :: ys),h⟩ => .cons x ( IList.ofList ⟨ xs, fun h => by aesop ⟩ )
+  | ⟨ x :: xs@(y :: ys),h⟩ => .cons x ( IList.ofList ⟨ xs, fun h => by
+  rename_i h_1 h_2
+  subst h_1
+  simp_all only [namedPattern, ne_eq, List.cons_ne_self, not_false_eq_true] ⟩ )
 
 instance : Coe (IList α) {l : List α // l ≠ []} where
   coe l := IList.toList l
