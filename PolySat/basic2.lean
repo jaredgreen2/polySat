@@ -1393,6 +1393,41 @@ theorem bcompatible_symm : ∀s t : List (Bool × normalizable α pred), bcompat
   symm
   exact hs y hy x hx hxy
 
+theorem bcompatible_self : ∀ s : List (Bool × normalizable α pred), List.Nodup (List.map Prod.snd s) -> bcompatible s s :=
+  by
+  intro s hs
+  unfold bcompatible
+  simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+     or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true]
+  rw [← s_nodup] at hs
+  intro x hx y hy hxy
+  simp only [beq_iff_eq, and_imp, implies_true, Bool.false_eq_true,
+    imp_false, true_and, Bool.true_eq_false, and_true] at hs
+  apply hs.1
+  exact hx
+  exact hy
+  exact hxy
+
+theorem bcompatible_union : ∀ s t u : List (Bool × normalizable α pred), bcompatible s u -> bcompatible t u -> bcompatible (s ++ t.filter (fun x => x ∉ s)) u :=
+  by
+  intro s t u
+  unfold bcompatible
+  simp only [beq_iff_eq, dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+     or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true, decide_not, List.all_append, List.all_filter, Bool.decide_and,
+    ite_not, Bool.if_true_left, Bool.and_eq_true, and_imp]
+  intro hsu htu
+  constructor
+  exact hsu
+  intro x hx _ y hy hxy
+  apply htu
+  exact hx
+  exact hy
+  exact hxy
+
 theorem filter_disjoint : ∀ l m: List α,List.Disjoint l (m.filter (fun x => x ∉ l)) :=
   by
   intro l m
@@ -2446,7 +2481,6 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
       (fun y => (y == x.1,y))) ++ x.2) := by {
     dsimp
   }
-
   let n4 := (cross12extend :: (( tl).map
             (fun x => x.map
               (fun y => (((cross12zip.filter
@@ -2782,12 +2816,69 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     exact hwx
     apply List.nodup_dedup
   }
-  have hnegn4 : ¬(∃ g ∈ (g1 :: g2 :: tl),∃ s ∈ g, ∃ h ∈ (g1 :: g2 :: tl),
+  have hnegn4 : ¬(∃ g ∈ n4,∃ s ∈ g, ∃ h ∈ n4,
                 (∃ w ∉ s, ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨
                 ¬ (∃ t ∈ h, bcompatible s t)) := by {
+    push_neg
+    rw [hn4]
+    intro g hg s hs h hh
+    simp only [Bool.not_eq_true', dite_eq_ite, Bool.if_true_right,
+      Bool.decide_eq_true, List.mem_cons, List.mem_map] at hg
+    simp only [Bool.not_eq_true', dite_eq_ite, Bool.if_true_right,
+      Bool.decide_eq_true, List.mem_cons, List.mem_map] at hh
+    cases' hg with hgcross hgtl
+    cases' hh with hhcross hhtl
+    constructor
+    intro w hw
+    use s
+    constructor
+    rw [hgcross] at hs
+    rw [← hhcross] at hs
+    exact hs
+    constructor
+    apply bcompatible_self
+    rw [hn4] at h_n4_coherent
+    rw [hgcross] at hs
+    exact h_n4_coherent cross12extend (by simp) s hs
+    exact hw
+    use s
+    constructor
+    rw [hgcross] at hs
+    rw [← hhcross] at hs
+    exact hs
+    apply bcompatible_self
+    rw [hn4] at h_n4_coherent
+    rw [hgcross] at hs
+    exact h_n4_coherent cross12extend (by simp) s hs
+    --case 2
+    rw [hcross12extend] at hgcross
+    rw [hcross12zip] at hgcross
+    rw [hcross12index] at hgcross
+    rw [← List.map_prod_right_eq_zip] at hgcross
+    rw [hcross12] at hgcross
+    rw [hgcross] at hs
+    simp at hs
+    obtain ⟨ a, ha1,ha2⟩ := hs
+    obtain ⟨ b, hb, c, hc1,hc2⟩ := ha1
+    constructor
+    intro w hw
+    rw [← ha2] at hw
+    simp only [List.mem_append, List.mem_dedup, List.mem_bind, List.mem_filter,
+      Function.comp_apply, not_or, not_and, forall_exists_index, and_imp] at hw
+    obtain ⟨ hw1, hw2⟩ := hw
+    rw [← hc2] at hw2
+    simp at hw2
+    obtain ⟨ hwb,hwc⟩ := hw2
+    have hwc : w ∉ c := by {
+      exact hwb ∘ hwc
+    }
+    --show that if a ∈ g is compatible with b ∈ h, the index of a is not false in b, and vice versa
+    --show by contradiction that for any two w, x ∉ s, there is a state in h compatible with s and having neither w or x
+    --use one without (false,index c) or w
+
     sorry
   }
-  have hexn4 : ∀ g ∈ (g1 :: g2 :: tl),∀ s ∈ g, ∃ no, (true, no) ∈ s ∧
+  have hexn4 : ∀ g ∈ n4,∀ s ∈ g, ∃ no, (true, no) ∈ s ∧
               ∀ t ∈ g, t ≠ s -> (false, no) ∈ t := by {
     sorry
   }
