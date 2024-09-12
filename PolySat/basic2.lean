@@ -29,6 +29,7 @@ deriving DecidableEq
 
 namespace normalizable
 
+
 @[reducible]
 def toProp (n : normalizable α pred) : Prop :=
   match n with
@@ -50,14 +51,14 @@ theorem toProp_or : toProp (Or n₁ n₂) ↔ toProp n₁ ∨ toProp n₂ := Iff
 theorem toProp_atom {a : α} : toProp (atom a : normalizable α pred) ↔ pred a := Iff.rfl
 
 def index (g : List ({l : List (Bool × normalizable α pred)//l ≠ []})) : List ( normalizable α pred) :=
-  g.map (fun x => IList.fold (IList.ofList x)
+  (g.map (fun x => IList.fold (IList.ofList x)
   (fun y z => And (if y.1 = false then Not y.2 else y.2) z)
-  (fun y => if y.1 = false then Not y.2 else y.2))
+  (fun y => if y.1 = false then Not y.2 else y.2))).dedup
 
 def extend (g : List ({l : List (Bool × normalizable α pred) // l ≠ []})) : List (List (Bool × normalizable α pred)) :=
   let gindex := index g;
-  let zindex := List.zip gindex g ;
-  zindex.map (fun x => (gindex.map (fun y => (y==x.1,y))) ++ x.2.1)
+  let zindex := List.zip gindex g.dedup ;
+  zindex.map (fun x => ((gindex.map (fun y => (y==x.1,y))) ++ x.2.1).dedup)
 
 --@[simp]
 @[reducible]
@@ -1401,8 +1402,27 @@ theorem filter_disjoint : ∀ l m: List α,List.Disjoint l (m.filter (fun x => x
   intro _
   exact hx
 
+def wireset (n : List (List (List (Bool × normalizable α pred)))) : List (normalizable α pred) :=
+  ((n.map
+  (fun g => (g.map
+  (fun s => s.map
+  (fun w => w.snd))).join)).join).dedup
+
+theorem all_in_wireset : ∀ n : (List (List (List (Bool × normalizable α pred)))), ∀ g ∈ n, ∀ s ∈ g, ∀ w ∈ s, w.2 ∈ wireset n :=
+  by
+  sorry
+
+def newwire :List (normalizable α pred) -> List (Bool × normalizable α pred)
+                       ->  normalizable α pred :=
+  sorry
+
+theorem newwirefunction : ∀ws : List (normalizable α pred),
+                      (∀ s : List (Bool × normalizable α pred), newwire ws l ∉ ws) ∧
+                      (∀ s t : List (Bool × normalizable α pred), s ≠ t -> newwire ws s ≠ newwire ws t) :=
+  by
+  sorry
+
 theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
-             ((∀ g ∈ n, ∀ s ∈ g, s ≠ []) ->
              coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
@@ -1410,11 +1430,10 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ((∃ w : Bool × normalizable α pred , w ∉ s ∧
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ no : normalizable α pred, (true,no) ∈ s ∧ ∀ t ∈ g, t ≠ s -> (false, no) ∈ t ) ->
-            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) :=
+            (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n)) :=
   by
   --do induction over the length of n three times
-  rw [ all_length_list (fun n =>  ((∀ g ∈ n, ∀ s ∈ g, s ≠ []) ->
-             coherent n ->
+  rw [ all_length_list (fun n =>  (coherent n ->
             ¬ (∃ g: List (List (Bool × normalizable α pred)), g ∈ n ∧
             ∃ s : List (Bool × normalizable α pred), s ∈ g ∧
             ∃ h : List (List (Bool × normalizable α pred)),h ∈ n ∧
@@ -1422,16 +1441,17 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
             ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨ ¬(∃ t ∈ h, bcompatible s t ))) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ no : normalizable α pred, (true,no) ∈ s ∧ ∀ t ∈ g, t ≠ s -> (false, no) ∈ t ) ->
             (∀ g ∈ n, ∀ s ∈ g, ∃ t, List.Subset s t ∧ (t.map Prod.snd).Nodup ∧ (sToProp t -> nToProp n))) ) ]
-  intro m n hn hfil
+  intro m
   induction' m with m ih
   --at 0, the universal is vacuous
-  intro hccoh hneg hex g hg
+  intro n hn hccoh hneg hex g hg
   simp at hn
   rw [hn] at hg
   contradiction
   --at 1, just use the entries of g
   clear ih
   induction' m with m' ih
+  intro n hn
   simp at hn
   intro hcoh hneg hex g hg
   cases' n with g tl
@@ -1461,6 +1481,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   --at 2, take the union of each entry and that of h that is bcompatible
   clear ih
   induction' m' with m'' ih
+  intro n hn
   simp at hn
   intro hcoh hneg hex
   push_neg at hneg
@@ -1676,6 +1697,7 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   exact hnxs
   clear ih
   induction' m'' with m''' ih
+  intro n hn
   --at 3,
     -- show that if an entry s ∈ g is compatible with t ∈ h, the element of t assured by hex, with its fst false, is not in s, this is an equivalence.
     -- then for that (true, w) from s, (false, w) would not be in t, ergo (applying hneg) there is a entry u in a third compatible with t also without (false, w),
@@ -2392,102 +2414,390 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   --at m + 3,
   --construct (extend (cross g1 g2) :: g3 :: tl), show it satisfies the preconditions,
   --and that the candidate solutions solve n
-  intro hcoh hneg hex
+  intro n hn hcoh hneg hex
   cases' n with g1 n1
   contradiction
-  cases' n1 with g2 n2
-  simp at hn
-  cases' n2 with g3 tl
+  cases' n1 with g2 tl
   simp at hn
   intro g
   let cross12 := (g1.bind
     (fun x => (g2.filter
       (fun y => bcompatible x y)).map
-        (fun y => x ++ (y.filter (fun z => z ∉ y)))))
+        (fun y => x ++ (y.filter (fun z => z ∉ x))))).dedup
   have hcross12 : cross12 = (g1.bind
     (fun x => (g2.filter
       (fun y => bcompatible x y)).map
-        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
+        (fun y => x ++ (y.filter (fun z => z ∉ x))))).dedup := by {
     dsimp
   }
-  let cross12source : List ({l : List (Bool × normalizable α pred)// l ≠ []}) := (cross12.attach.map (fun x => ⟨x.1, (by
-    have property := x.2
-    have hhcross12 : x.1 ∈ (g1.bind
-    (fun x => (g2.filter
-      (fun y => bcompatible x y)).map
-        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
-      rw [← hcross12]
-      exact property
-    }
-    simp only [decide_not, List.mem_bind,List.mem_map] at hhcross12
-    obtain ⟨ s,hs,ht⟩ := hhcross12
-    obtain ⟨ t, ht,hht⟩ := ht
-    have hx := hfil g1 (by simp) s hs
-    have hax := List.append_ne_nil_of_left_ne_nil hx (List.filter (fun z ↦ !decide (z ∈ t)) t)
-    rw [hht] at hax
-    exact hax )⟩ ))
-  have hcross12source : cross12source = (cross12.attach.map (fun x => ⟨x.1, (by
-    have property := x.2
-    have hhcross12 : x.1 ∈ (g1.bind
-    (fun x => (g2.filter
-      (fun y => bcompatible x y)).map
-        (fun y => x ++ (y.filter (fun z => z ∉ y))))) := by {
-      rw [← hcross12]
-      exact property
-    }
-    simp only [decide_not, List.mem_bind,List.mem_map] at hhcross12
-    obtain ⟨ s,hs,ht⟩ := hhcross12
-    obtain ⟨ t, ht,hht⟩ := ht
-    have hx := hfil g1 (by simp) s hs
-    have hax := List.append_ne_nil_of_left_ne_nil hx (List.filter (fun z ↦ !decide (z ∈ t)) t)
-    rw [hht] at hax
-    exact hax )⟩ )) := by {
+  let cross12index := cross12.map (fun x => newwire (wireset (g1 :: g2 :: tl)) x)
+  have hcross12index : cross12index = cross12.map (fun x => newwire (wireset (g1 :: g2 :: tl)) x) := by {
     dsimp
   }
-  let cross12index := index cross12source
-  have hcross12index : cross12index = index cross12source := by {
+  let cross12zip := List.zip cross12index cross12
+  have hcross12zip : cross12zip = List.zip cross12index cross12 := by {
     dsimp
   }
-  let cross12extend := extend cross12source
-  have hcross12extend : cross12extend = extend cross12source := by {
+  let cross12extend := cross12zip.map
+    (fun x => (cross12index.map
+      (fun y => (y == x.1,y))) ++ x.2)
+  have hcross12extend : cross12extend = cross12zip.map
+    (fun x => (cross12index.map
+      (fun y => (y == x.1,y))) ++ x.2) := by {
     dsimp
   }
-  let cross12zip := List.zip (index cross12source) cross12
-  let n4 := (cross12extend :: ((g3 :: tl).map
+
+  let n4 := (cross12extend :: (( tl).map
             (fun x => x.map
-              (fun y => cross12zip.foldr
-                (fun z w => if ! (bcompatible y z.2)
-                              then (false,z.1) :: w
-                              else if cross12.all (fun v => bcompatible y v -> v = z.2)
-                                     then (true, z.1) :: w
-                                     else w
-                ) y
+              (fun y => (((cross12zip.filter
+                (fun z =>! (bcompatible y z.2)
+                || cross12.all (fun v => bcompatible y v -> v = z.2))).map
+                (fun z => if ! (bcompatible y z.2) then (false,z.1) else (true,z.1))) ++ y).dedup
               )
             )))
-  have hn4 : n4 = (cross12extend :: ((g3 :: tl).map
+  have hn4 : n4 = (cross12extend :: (( tl).map
             (fun x => x.map
-              (fun y => cross12zip.foldr
-                (fun z w => if ! (bcompatible y z.2)
-                              then (false,z.1) :: w
-                              else if cross12.all (fun v => bcompatible y v -> v = z.2)
-                                     then (true, z.1) :: w
-                                     else w
-                ) y
+              (fun y => (((cross12zip.filter
+                (fun z =>! (bcompatible y z.2)
+                || cross12.all (fun v => bcompatible y v -> v = z.2))).map
+                (fun z => if ! (bcompatible y z.2) then (false,z.1) else (true,z.1))) ++ y).dedup
               )
-            ))) := by {
+            ))):= by {
     rfl
   }
   --show that the preconditions are satisfied by n4
   --apply ih
   --use the solutions so assured
-
+  have h_n4_coherent : coherent n4 := by {
+    unfold coherent
+    intro g hg s hs
+    rw [hn4] at hg
+    simp only [Bool.not_eq_true',  dite_eq_ite, Bool.if_true_right,
+      Bool.decide_eq_true, List.mem_cons, List.mem_map] at hg
+    cases' hg with hg hg
+    rw [hcross12extend] at hg
+    rw [hcross12zip] at hg
+    rw [hcross12index] at hg
+    rw [hcross12] at hg
+    simp only [decide_not, List.map_map] at hg
+    rw [hg] at hs
+    simp at hs
+    obtain ⟨ x,y,hs1, hs2⟩ := hs
+    rw [← s_nodup]
+    constructor
+    rw [← hs2]
+    simp only [ List.mem_append, List.mem_map, List.mem_attach, Function.comp_apply,
+      true_and, Subtype.exists, beq_iff_eq, and_imp,  Prod.mk.injEq,
+      exists_eq_right_right,  beq_eq_false_iff_ne, ne_eq, implies_true,
+      Bool.false_eq_true, imp_false, Bool.true_eq_false, and_true]
+    intro v w hv hw hvw
+    cases' hv with hv1 hv2
+    obtain ⟨ u,hu1,hu2⟩ := hv1
+    cases' hw with hw1 hw2
+    obtain ⟨ t,ht1,ht2⟩ := hw1
+    cases' Classical.em (t = u) with htu hntu
+    rw [htu] at ht2
+    rw [← hu2]
+    rw [← ht2]
+    exfalso
+    rw [← ht2] at hvw
+    rw [← hu2] at hvw
+    simp at hvw
+    symm at hvw
+    convert hntu (((newwirefunction (wireset (g1 :: g2 :: tl))).2 t u).mtr hvw)
+    assumption --why is this expected? it isnt used anywhere.
+    exfalso
+    apply List.of_mem_zip at hs1
+    obtain ⟨ hs11,hs12⟩ := hs1
+    simp at hs12
+    obtain ⟨ a,ha,b,hb1,hb2⟩ := hs12
+    rw [← hb2] at hw2
+    simp at hw2
+    have hu2ni : v.2 ∉ wireset (g1 :: g2 :: tl) := by {
+      rw [← hu2]
+      exact (newwirefunction (wireset (g1 :: g2 :: tl))).1 u
+    }
+    cases' hw2 with hwa hwb
+    have hw2i := all_in_wireset (g1 :: g2 :: tl) g1 (by simp) a ha w hwa
+    rw [← hvw] at hw2i
+    apply hu2ni
+    exact hw2i
+    have hw2i := all_in_wireset (g1 :: g2 :: tl) g2 (by simp) b hb1.1 w hwb.1
+    rw [← hvw] at hw2i
+    apply hu2ni
+    exact hw2i
+    cases' hw with hw1 hw2
+    exfalso
+    obtain ⟨ a,ha1,ha2⟩ := hw1
+    apply List.of_mem_zip at hs1
+    obtain ⟨ hs11, hs12⟩ := hs1
+    simp at hs12
+    obtain ⟨ b,hb,c,hc1,hb2⟩ := hs12
+    rw [← hb2] at hv2
+    simp at hv2
+    have hwni : w.2 ∉ wireset (g1 :: g2 :: tl) := by {
+      rw [← ha2]
+      exact (newwirefunction (wireset (g1 :: g2 :: tl))).1 a
+    }
+    cases' hv2 with hvb hvc
+    have hvi := all_in_wireset (g1 :: g2 :: tl) g1 (by simp) b hb v hvb
+    rw [hvw] at hvi
+    apply hwni
+    exact hvi
+    have hvi := all_in_wireset (g1 :: g2 :: tl) g2 (by simp) c hc1.1 v hvc.1
+    rw [hvw] at hvi
+    apply hwni
+    exact hvi
+    apply List.of_mem_zip at hs1
+    obtain ⟨ hs11,hs12⟩ := hs1
+    simp at hs12
+    obtain ⟨ a,ha,b,hb,hb2⟩ := hs12
+    unfold coherent at hcoh
+    have hcoha := hcoh g1 (by simp) a ha
+    rw [← s_nodup] at hcoha
+    simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+      imp_false, true_and, Bool.true_eq_false, and_true] at hcoha
+    have hcohb := hcoh g2 (by simp) b hb.1
+    rw [← s_nodup] at hcohb
+    simp only [beq_iff_eq, and_imp,  implies_true, Bool.false_eq_true,
+      imp_false, true_and, Bool.true_eq_false, and_true] at hcohb
+    rw [← hb2] at hv2
+    rw [← hb2] at hw2
+    simp at hv2
+    simp at hw2
+    rw [or_and_not] at hv2
+    rw [or_and_not] at hw2
+    cases' hv2 with hva hvb
+    cases' hw2 with hwa hwb
+    apply hcoha.1
+    exact hva
+    exact hwa
+    exact hvw
+    unfold bcompatible at hb
+    simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+      Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+       or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+      Bool.true_eq_false, and_true] at hb
+    apply hb.2
+    exact hva
+    exact hwb
+    exact hvw
+    cases' hw2 with hwa hwb
+    unfold bcompatible at hb
+    simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+      Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+       or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+      Bool.true_eq_false, and_true] at hb
+    symm
+    apply hb.2
+    exact hwa
+    exact hvb
+    symm at hvw
+    exact hvw
+    apply hcohb.1
+    exact hvb
+    exact hwb
+    exact hvw
+    rw [← hs2]
+    apply List.Nodup.append
+    apply List.Nodup.map_on
+    intro a ha b hb heq
+    simp at heq
+    obtain ⟨ heq1,heq2⟩ := heq
+    convert ((newwirefunction (wireset (g1 :: g2 ::tl))).2 a b).mtr heq2
+    assumption --why is this expected?
+    apply List.nodup_dedup
+    apply List.of_mem_zip at hs1
+    obtain ⟨ hs11,hs12⟩ := hs1
+    simp at hs12
+    obtain ⟨ a,ha,b,hb1,hb2⟩ := hs12
+    rw [← hb2]
+    apply List.Nodup.append
+    have hcoha := hcoh g1 (by simp) a ha
+    rw [← s_nodup] at hcoha
+    exact hcoha.2
+    apply List.Nodup.filter
+    have hcohb := hcoh g2 (by simp) b hb1.1
+    rw [← s_nodup] at hcohb
+    exact hcohb.2
+    have hdis := filter_disjoint a b
+    simp at hdis
+    exact hdis
+    unfold List.Disjoint
+    simp only [List.mem_map, List.mem_dedup, List.mem_bind, List.mem_filter, Function.comp_apply,
+      imp_false, forall_exists_index, and_imp, Prod.mk.injEq,
+      beq_eq_false_iff_ne, ne_eq, beq_iff_eq]
+    intro a b c hc d hd hcd hcd2 ha hay
+    apply List.of_mem_zip at hs1
+    obtain ⟨ hs11,hs12⟩ := hs1
+    simp at hs12
+    obtain ⟨ e,he,f,hf1,hf2⟩ := hs12
+    rw [← hf2] at hay
+    simp at hay
+    have hani : a.2 ∉ wireset (g1 :: g2 :: tl) := by {
+      rw [← ha]
+      exact (newwirefunction (wireset (g1 :: g2 :: tl))).1 b
+    }
+    cases' hay with hae haf
+    have hai := all_in_wireset (g1 :: g2 :: tl) g1 (by simp) e he a hae
+    apply hani
+    exact hai
+    have hai := all_in_wireset (g1 :: g2 :: tl) g2 (by simp) f hf1.1 a haf.1
+    apply hani
+    exact hai
+    obtain ⟨ a,ha,hha⟩ := hg
+    rw [← hha] at hs
+    simp only [ dite_eq_ite, Bool.if_true_right, Bool.decide_eq_true,
+      List.mem_map] at hs
+    obtain ⟨ b,hb,hhb⟩ := hs
+    rw [← hhb]
+    rw [← s_nodup]
+    constructor
+    intro w x hw hwx
+    simp
+    simp at hwx
+    obtain ⟨hw,hx⟩ := hw
+    simp only [List.mem_dedup, List.mem_append, List.mem_map, List.mem_filter, Bool.or_eq_true,
+      Bool.not_eq_true', List.all_eq_true, decide_eq_true_eq] at hw
+    simp only [List.mem_dedup, List.mem_append, List.mem_map, List.mem_filter, Bool.or_eq_true,
+      Bool.not_eq_true', List.all_eq_true, decide_eq_true_eq] at hx
+    cases' hw with hw1 hw2
+    obtain ⟨ t,ht,hht⟩ := hw1
+    cases' hx with hx1 hx2
+    obtain ⟨ u, hu,hhu⟩ := hx1
+    rw [hcross12zip] at ht
+    rw [hcross12zip] at hu
+    rw [hcross12index] at ht
+    rw [hcross12index] at hu
+    rw [← List.map_prod_right_eq_zip] at ht
+    rw [← List.map_prod_right_eq_zip] at hu
+    obtain ⟨ht1,ht2⟩ := ht
+    obtain ⟨ hu1,hu2⟩ := hu
+    simp at ht1
+    simp at hu1
+    obtain ⟨ c,hc1,hc2⟩ := ht1
+    obtain ⟨ d,hd1,hd2⟩ := hu1
+    rw [← hc2] at hht
+    rw [← hht] at hwx
+    rw [← hd2] at hhu
+    rw [← hhu] at hwx
+    simp at hwx
+    have hifc : (if bcompatible b c = false then (false, newwire (wireset (g1 :: g2 :: tl)) c)
+        else (true, newwire (wireset (g1 :: g2 :: tl)) c)).2 = (if bcompatible b c = false then (false, newwire (wireset (g1 :: g2 :: tl)) c).2
+        else (true, newwire (wireset (g1 :: g2 :: tl)) c).2) := by {
+      cases' Classical.em (bcompatible b c = false) with hbcf hbct
+      simp
+      rw [hbcf]
+      simp
+      simp at hbct
+      rw [hbct]
+      simp
+    }
+    have hifd : (if bcompatible b d = false then (false, newwire (wireset (g1 :: g2 :: tl)) d)
+        else (true, newwire (wireset (g1 :: g2 :: tl)) d)).2 = (if bcompatible b d = false then (false, newwire (wireset (g1 :: g2 :: tl)) d).2
+        else (true, newwire (wireset (g1 :: g2 :: tl)) d).2) := by {
+      cases' Classical.em (bcompatible b d = false) with hbcf hbct
+      simp
+      rw [hbcf]
+      simp
+      simp at hbct
+      rw [hbct]
+      simp
+    }
+    rw [hifc] at hwx
+    rw [hifd] at hwx
+    simp at hwx
+    have hcd : c = d := by {
+      convert ((newwirefunction (wireset (g1 :: g2 :: tl))).2 c d).mtr hwx
+      assumption --why is this expected? it isnt used anywhere, but apparently i needed it
+    }
+    rw [hcd] at hht
+    rw [← hht]
+    rw [← hhu]
+    exfalso
+    rw [hcross12zip] at ht
+    rw [hcross12index] at ht
+    rw [← List.map_prod_right_eq_zip] at ht
+    obtain ⟨ht1,ht2⟩ := ht
+    simp at ht1
+    obtain ⟨ c,hc1,hc2⟩ := ht1
+    rw [← hc2] at hht
+    simp at hht
+    rw [← hht] at hwx
+    have hifc : (if bcompatible b c = false then (false, newwire (wireset (g1 :: g2 :: tl)) c)
+        else (true, newwire (wireset (g1 :: g2 :: tl)) c)).2 = (if bcompatible b c = false then (false, newwire (wireset (g1 :: g2 :: tl)) c).2
+        else (true, newwire (wireset (g1 :: g2 :: tl)) c).2) := by {
+      cases' Classical.em (bcompatible b c = false) with hbcf hbct
+      simp
+      rw [hbcf]
+      simp
+      simp at hbct
+      rw [hbct]
+      simp
+    }
+    rw [hifc] at hwx
+    simp at hwx
+    have hxi : x.2 ∈ wireset (g1 :: g2 :: tl) := all_in_wireset (g1 :: g2 :: tl) a (by right; right; exact ha) b hb x hx2
+    have hxni : newwire (wireset (g1 :: g2 :: tl)) c ∉ wireset (g1 :: g2 :: tl) := (newwirefunction (wireset (g1 :: g2 :: tl))).1 c
+    apply hxni
+    rw [hwx]
+    exact hxi
+    cases' hx with hx1 hx2
+    obtain ⟨ u, hu,hhu⟩ := hx1
+    exfalso
+    rw [hcross12zip] at hu
+    rw [hcross12index] at hu
+    rw [← List.map_prod_right_eq_zip] at hu
+    obtain ⟨hu1,hu2⟩ := hu
+    simp at hu1
+    obtain ⟨ d,hd1,hd2⟩ := hu1
+    rw [← hd2] at hhu
+    simp at hhu
+    rw [← hhu] at hwx
+    have hifd : (if bcompatible b d = false then (false, newwire (wireset (g1 :: g2 :: tl)) d)
+        else (true, newwire (wireset (g1 :: g2 :: tl)) d)).2 = (if bcompatible b d = false then (false, newwire (wireset (g1 :: g2 :: tl)) d).2
+        else (true, newwire (wireset (g1 :: g2 :: tl)) d).2) := by {
+      cases' Classical.em (bcompatible b d = false) with hbcf hbct
+      simp
+      rw [hbcf]
+      simp
+      simp at hbct
+      rw [hbct]
+      simp
+    }
+    rw [hifd] at hwx
+    simp at hwx
+    have hxi : w.2 ∈ wireset (g1 :: g2 :: tl) := all_in_wireset (g1 :: g2 :: tl) a (by right; right; exact ha) b hb w hw2
+    have hxni : newwire (wireset (g1 :: g2 :: tl)) d ∉ wireset (g1 :: g2 :: tl) := (newwirefunction (wireset (g1 :: g2 :: tl))).1 d
+    apply hxni
+    rw [← hwx]
+    exact hxi
+    have hcohb := hcoh a (by right; right; exact ha) b hb
+    rw [← s_nodup] at hcohb
+    simp only [beq_iff_eq, and_imp,implies_true, Bool.false_eq_true,
+      imp_false, true_and, Bool.true_eq_false, and_true] at hcohb
+    apply hcohb.1
+    exact hw2
+    exact hx2
+    exact hwx
+    apply List.nodup_dedup
+  }
+  have hnegn4 : ¬(∃ g ∈ (g1 :: g2 :: tl),∃ s ∈ g, ∃ h ∈ (g1 :: g2 :: tl),
+                (∃ w ∉ s, ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨
+                ¬ (∃ t ∈ h, bcompatible s t)) := by {
+    sorry
+  }
+  have hexn4 : ∀ g ∈ (g1 :: g2 :: tl),∀ s ∈ g, ∃ no, (true, no) ∈ s ∧
+              ∀ t ∈ g, t ≠ s -> (false, no) ∈ t := by {
+    sorry
+  }
+  have hnn4 : List.length n4 = m''' + 1 + 1 + 1 := by {
+    sorry
+  }
+  --have houtn4 := ih n4 hn4 h_n4_coherent hnegn4 hexn4
   sorry
 
-def wireset (n : List (List (List (Bool × normalizable α pred)))) : List (normalizable α pred) :=
-  ((n.map
-  (fun g => (g.map
-  (fun s => s.map
-  (fun w => w.snd))).join)).join).dedup
+
 
 def order (n : List (List (List (Bool × normalizable α pred))))  : Nat :=
   let count : Nat := Nat.succ (wireset n).length;
