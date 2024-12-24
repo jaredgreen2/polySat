@@ -2513,11 +2513,11 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   let n4 := n4_pre.map (fun t => t.map (fun r => (((n4_pre.filter (fun u => !(u ==t))
           ).map (fun p => (p.filter (fun v => bcompatible v r)))
         ).map (fun w => ((interl (w.filter (fun v => bcompatible v r))).filter (fun x => x ∉ r)))
-      ).foldl (fun a b => a ++ (b.filter (fun x => x ∉ a))) r))
+      ).foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) r))
   have hn4 : n4 = n4_pre.map (fun t => t.map (fun r => (((n4_pre.filter (fun u => !(u ==t))
           ).map (fun p => (p.filter (fun v => bcompatible v r)))
         ).map (fun w => ((interl (w.filter (fun v => bcompatible v r))).filter (fun x => x ∉ r)))
-      ).foldl (fun a b => a ++ (b.filter (fun x => x ∉ a))) r)) := by {
+      ).foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) r)) := by {
     dsimp
   }
   have h_n4_coherent : coherent n4 := by {
@@ -2528,8 +2528,75 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     obtain ⟨ x, hx, rfl⟩ := hg
     simp only [List.mem_map] at hs
     obtain ⟨ y, hy, hhy⟩ := hs
+    rw [hn4_pre] at hx
+    simp only [List.mem_map] at hx
+    obtain ⟨ z ,hz,hx⟩ := hx
+    rw [← hx] at hy
+    simp only [List.mem_map] at hy
+    obtain ⟨w,hw,hy ⟩ := hy
+    rw [← s_nodup]
+    have hfold : ∀ (init : List  (Bool × normalizable α pred))
+       (lst : List (List (Bool × normalizable α pred))),
+       (init.map Prod.snd).Nodup ->
+       (∀ x ∈ lst, (x.map Prod.snd).Nodup) ->
+       (∀ x ∈ lst, bcompatible init x) ->
+       (∀ a ∈ lst, ∀ b ∈ lst, bcompatible a b) ->
+       ((lst.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init).map Prod.snd).Nodup := by {
+      intro init lst
+      induction' lst with hd tl ih1
+      intro hinit _ _ _
+      simp [List.foldr]
+      exact hinit
+      intro hinit htail hcompat_init hab
+      have hcompat_fold : ∀ (init1 : List  (Bool × normalizable α pred))
+       (lst1 : List (List (Bool × normalizable α pred))), ∀ hd1 : List  (Bool × normalizable α pred),
+       (∀ x ∈ hd1 :: lst1, bcompatible init1 x) ->
+       (∀ a ∈ hd1 :: lst1, ∀ b ∈ hd1 :: lst1, bcompatible a b) -> bcompatible hd1 (lst1.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init1):= by {
+        intro init1 lst1
+        induction' lst1 with hd' tl' ih2
+        intro hd1 hinit2 hab2
+        simp
+        simp at hinit2
+        rw [bcompatible_symm]
+        exact hinit2
+        intro hd1 hinit2 hab2
+        simp only [ List.foldr_cons]
+        rw [bcompatible_symm]
+        apply bcompatible_union
+        apply hab2
+        simp
+        simp
+        rw [bcompatible_symm]
+        apply ih2
+        intro x hx
+        apply hinit2
+        cases' hx with hx hx
+        simp
+        right
+        right
+        assumption
+        intro a ha b hb
+        apply hab2
+        cases' ha with ha ha
+        simp
+        right
+        right
+        assumption
+        cases' hb with hb hb
+        simp
+        right
+        right
+        assumption
+      }
+      have hhd := hcompat_fold init tl hd hcompat_init hab
+      sorry
+    }
+    constructor
+    simp only [beq_iff_eq, and_imp, Bool.forall_bool, implies_true, Bool.false_eq_true,
+      imp_false, true_and, Bool.true_eq_false, and_true]
+    intro v1 v2 hv1 hv2 heq_snd
 
-
+    sorry
     sorry
   }
   have hnegn4 : ¬(∃ g ∈ n4, ∃ s ∈ g, ∃ h ∈ n4,
