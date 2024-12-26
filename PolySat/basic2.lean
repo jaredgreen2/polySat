@@ -1484,7 +1484,7 @@ theorem compatible_fold1 :  ∀ (init1 : List  (Bool × normalizable α pred))
   right
   assumption
 
-theorem compatible_fold2 : ∀ (init : List  (Bool × normalizable α pred))
+theorem nodup_fold2 : ∀ (init : List  (Bool × normalizable α pred))
        (lst : List (List (Bool × normalizable α pred))),
        (init.map Prod.snd).Nodup ->
        (∀ x ∈ lst, (x.map Prod.snd).Nodup) ->
