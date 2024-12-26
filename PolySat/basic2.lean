@@ -1443,19 +1443,151 @@ def wireset (n : List (List (List (Bool × normalizable α pred)))) : List (norm
   (fun s => s.map
   (fun w => w.snd))).join)).join).dedup
 
-theorem all_in_wireset : ∀ n : (List (List (List (Bool × normalizable α pred)))), ∀ g ∈ n, ∀ s ∈ g, ∀ w ∈ s, w.2 ∈ wireset n :=
+theorem compatible_fold1 :  ∀ (init1 : List  (Bool × normalizable α pred))
+       (lst1 : List (List (Bool × normalizable α pred))), ∀ hd1 : List  (Bool × normalizable α pred),
+       (∀ x ∈ hd1 :: lst1, bcompatible init1 x) ->
+       (∀ a ∈ hd1 :: lst1, ∀ b ∈ hd1 :: lst1, bcompatible a b) -> bcompatible hd1 (lst1.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init1):=
   by
-  sorry
+  intro init1 lst1
+  induction' lst1 with hd' tl' ih2
+  intro hd1 hinit2 _
+  simp
+  simp at hinit2
+  rw [bcompatible_symm]
+  exact hinit2
+  intro hd1 hinit2 hab2
+  simp only [ List.foldr_cons]
+  rw [bcompatible_symm]
+  apply bcompatible_union
+  apply hab2
+  simp
+  simp
+  rw [bcompatible_symm]
+  apply ih2
+  intro x hx
+  apply hinit2
+  cases' hx with hx hx
+  simp
+  right
+  right
+  assumption
+  intro a ha b hb
+  apply hab2
+  cases' ha with ha ha
+  simp
+  right
+  right
+  assumption
+  cases' hb with hb hb
+  simp
+  right
+  right
+  assumption
 
-def newwire :List (normalizable α pred) -> List (Bool × normalizable α pred)
-                       ->  normalizable α pred :=
-  sorry
-
-theorem newwirefunction : ∀ws : List (normalizable α pred),
-                      (∀ s : List (Bool × normalizable α pred), newwire ws l ∉ ws) ∧
-                      (∀ s t : List (Bool × normalizable α pred), s ≠ t -> newwire ws s ≠ newwire ws t) :=
+theorem compatible_fold2 : ∀ (init : List  (Bool × normalizable α pred))
+       (lst : List (List (Bool × normalizable α pred))),
+       (init.map Prod.snd).Nodup ->
+       (∀ x ∈ lst, (x.map Prod.snd).Nodup) ->
+       (∀ x ∈ lst, bcompatible init x) ->
+       (∀ a ∈ lst, ∀ b ∈ lst, bcompatible a b) ->
+       ((lst.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init).map Prod.snd).Nodup :=
   by
-  sorry
+  intro init lst
+  induction' lst with hd tl ih1
+  intro hinit _ _ _
+  simp [List.foldr]
+  exact hinit
+  intro hinit htail hcompat_init hab
+  rw [← s_nodup]
+  have hinit3 := hinit
+  simp only [ List.foldr_cons]
+  have htail1 : (∀ x ∈ tl, (List.map Prod.snd x).Nodup) := by {
+    intro y hy
+    apply htail
+    right
+    exact hy
+  }
+  have htail2 : (∀ x ∈ tl, bcompatible init x = true) := by {
+    intro y hy
+    apply hcompat_init
+    right
+    convert hy
+  }
+  have htail3 : (∀ a ∈ tl, ∀ b ∈ tl, bcompatible a b = true) := by {
+    intro y hy z hz
+    apply hab
+    right
+    exact hy
+    right
+    exact hz
+  }
+  have hi := ih1 hinit3 htail1 htail2 htail3
+  rw [← s_nodup] at hi
+  obtain ⟨hi1, hi2⟩ := hi
+  constructor
+  intro w x hwx hwx2
+  obtain ⟨ hw, hx⟩ := hwx
+  rw [List.mem_append] at hw
+  rw [List.mem_append] at hx
+  cases' hw with hwd hwt
+  cases' hx with hxd hxt
+  have hth := htail hd (by simp)
+  rw [← s_nodup] at hth
+  obtain ⟨hth1, _⟩ := hth
+  apply hth1
+  constructor
+  exact hwd
+  exact hxd
+  exact hwx2
+  have hcompat_tl := compatible_fold1 init tl hd hcompat_init hab
+  unfold bcompatible at hcompat_tl
+  simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+    or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true] at hcompat_tl
+  apply List.mem_of_mem_filter at hxt
+  simp
+  apply hcompat_tl
+  exact hwd
+  exact hxt
+  simp at hwx2
+  exact hwx2
+  cases' hx with hxd hxt
+  have hcompat_tl := compatible_fold1 init tl hd hcompat_init hab
+  unfold bcompatible at hcompat_tl
+  simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+    or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true] at hcompat_tl
+  apply List.mem_of_mem_filter at hwt
+  simp
+  symm
+  apply hcompat_tl
+  exact hxd
+  exact hwt
+  simp at hwx2
+  symm
+  exact hwx2
+  apply hi1
+  constructor
+  apply List.mem_of_mem_filter at hwt
+  exact hwt
+  apply List.mem_of_mem_filter at hxt
+  exact hxt
+  exact hwx2
+  rw [List.nodup_append]
+  constructor
+  have hhd2 := htail hd (by simp)
+  rw [← s_nodup] at hhd2
+  exact hhd2.2
+  constructor
+  apply nodup_filter
+  exact hi2
+  unfold List.Disjoint
+  intro a ha
+  simp
+  intro _
+  exact ha
 
 theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
              coherent n ->
@@ -2510,93 +2642,14 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   have hn4_pre : n4_pre = (n1.map (fun x => (x.filter (fun y => bcompatible s1 y)).map (fun y => s1 ++ y.filter (fun z => z ∉ s1)))) := by {
     dsimp
   }
-  let n4 := n4_pre.map (fun t => t.map (fun r => (((n4_pre.filter (fun u => !(u ==t))
-          ).map (fun p => (p.filter (fun v => bcompatible v r)))
-        ).map (fun w => ((interl (w.filter (fun v => bcompatible v r))).filter (fun x => x ∉ r)))
-      ).foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) r))
-  have hn4 : n4 = n4_pre.map (fun t => t.map (fun r => (((n4_pre.filter (fun u => !(u ==t))
-          ).map (fun p => (p.filter (fun v => bcompatible v r)))
-        ).map (fun w => ((interl (w.filter (fun v => bcompatible v r))).filter (fun x => x ∉ r)))
-      ).foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) r)) := by {
+  let n4 := n4_pre
+  have hn4 : n4 = n4_pre := by {
     dsimp
   }
   have h_n4_coherent : coherent n4 := by {
     unfold coherent
     intro g hg s hs
-    rw [hn4] at hg
-    simp only [List.mem_map] at hg
-    obtain ⟨ x, hx, rfl⟩ := hg
-    simp only [List.mem_map] at hs
-    obtain ⟨ y, hy, hhy⟩ := hs
-    rw [hn4_pre] at hx
-    simp only [List.mem_map] at hx
-    obtain ⟨ z ,hz,hx⟩ := hx
-    rw [← hx] at hy
-    simp only [List.mem_map] at hy
-    obtain ⟨w,hw,hy ⟩ := hy
-    rw [← s_nodup]
-    have hfold : ∀ (init : List  (Bool × normalizable α pred))
-       (lst : List (List (Bool × normalizable α pred))),
-       (init.map Prod.snd).Nodup ->
-       (∀ x ∈ lst, (x.map Prod.snd).Nodup) ->
-       (∀ x ∈ lst, bcompatible init x) ->
-       (∀ a ∈ lst, ∀ b ∈ lst, bcompatible a b) ->
-       ((lst.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init).map Prod.snd).Nodup := by {
-      intro init lst
-      induction' lst with hd tl ih1
-      intro hinit _ _ _
-      simp [List.foldr]
-      exact hinit
-      intro hinit htail hcompat_init hab
-      have hcompat_fold : ∀ (init1 : List  (Bool × normalizable α pred))
-       (lst1 : List (List (Bool × normalizable α pred))), ∀ hd1 : List  (Bool × normalizable α pred),
-       (∀ x ∈ hd1 :: lst1, bcompatible init1 x) ->
-       (∀ a ∈ hd1 :: lst1, ∀ b ∈ hd1 :: lst1, bcompatible a b) -> bcompatible hd1 (lst1.foldr (fun a b => a ++ (b.filter (fun x => x ∉ a))) init1):= by {
-        intro init1 lst1
-        induction' lst1 with hd' tl' ih2
-        intro hd1 hinit2 hab2
-        simp
-        simp at hinit2
-        rw [bcompatible_symm]
-        exact hinit2
-        intro hd1 hinit2 hab2
-        simp only [ List.foldr_cons]
-        rw [bcompatible_symm]
-        apply bcompatible_union
-        apply hab2
-        simp
-        simp
-        rw [bcompatible_symm]
-        apply ih2
-        intro x hx
-        apply hinit2
-        cases' hx with hx hx
-        simp
-        right
-        right
-        assumption
-        intro a ha b hb
-        apply hab2
-        cases' ha with ha ha
-        simp
-        right
-        right
-        assumption
-        cases' hb with hb hb
-        simp
-        right
-        right
-        assumption
-      }
-      have hhd := hcompat_fold init tl hd hcompat_init hab
-      sorry
-    }
-    constructor
-    simp only [beq_iff_eq, and_imp, Bool.forall_bool, implies_true, Bool.false_eq_true,
-      imp_false, true_and, Bool.true_eq_false, and_true]
-    intro v1 v2 hv1 hv2 heq_snd
 
-    sorry
     sorry
   }
   have hnegn4 : ¬(∃ g ∈ n4, ∃ s ∈ g, ∃ h ∈ n4,
