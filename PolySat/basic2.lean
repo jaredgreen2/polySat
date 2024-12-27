@@ -1375,6 +1375,11 @@ theorem or_and_not (a b : Prop): a ∨ (b ∧ ¬ a) <-> a ∨ b :=
   right
   exact bna.1
 
+theorem filterunionmem (a : b) (l m : List b): (a ∈ l ++ (m.filter (fun x => x ∉ l))) <-> a ∈ l ∨ a ∈ m :=
+  by
+  simp
+  rw [or_and_not]
+
 theorem bcompatible_symm : ∀s t : List (Bool × normalizable α pred), bcompatible s t <-> bcompatible t s :=
   by
   intro s t
@@ -2649,12 +2654,99 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   have h_n4_coherent : coherent n4 := by {
     unfold coherent
     intro g hg s hs
-
-    sorry
+    rw [hn4] at hg
+    rw [hn4_pre] at hg
+    simp only [List.mem_map] at hg
+    obtain ⟨ x,hx,rfl⟩ := hg
+    simp only [List.mem_map] at hs
+    obtain ⟨ y,hy,hhy⟩ := hs
+    rw [List.mem_filter] at hy
+    obtain ⟨ hy_orig, hcompat_y⟩ := hy
+    have hcoh_s1 := hcoh g1 (by simp) s1 hs11
+    have hcoh_y := hcoh x (by right;exact hx) y hy_orig
+    rw [← s_nodup] at hcoh_s1 hcoh_y
+    rw [← hhy]
+    rw [← s_nodup]
+    constructor
+    simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
+      decide_eq_false_iff_not, beq_iff_eq, and_imp]
+    simp only [beq_iff_eq, and_imp,  Bool.forall_bool, implies_true, Bool.false_eq_true,
+      imp_false, true_and, Bool.true_eq_false, and_true] at hcoh_s1
+    intro w v hw hv hwv
+    cases' hw with hws hwy
+    cases' hv with hvs hvy
+    apply hcoh_s1.1
+    exact hws
+    exact hvs
+    exact hwv
+    unfold bcompatible at hcompat_y
+    simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+      Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+       or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+      Bool.true_eq_false, and_true] at hcompat_y
+    apply hcompat_y
+    exact hws
+    exact hvy.1
+    exact hwv
+    cases' hv with hvs hvy
+    unfold bcompatible at hcompat_y
+    simp only [beq_iff_eq,  dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+      Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+       or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+      Bool.true_eq_false, and_true] at hcompat_y
+    symm
+    apply hcompat_y
+    exact hvs
+    exact hwy.1
+    symm
+    exact hwv
+    simp only [beq_iff_eq, and_imp] at hcoh_y
+    apply hcoh_y.1
+    exact hwy.1
+    exact hvy.1
+    exact hwv
+    rw [List.nodup_append]
+    constructor
+    exact hcoh_s1.2
+    constructor
+    apply nodup_filter
+    exact hcoh_y.2
+    unfold List.Disjoint
+    intro x hx hx_filter
+    simp at hx_filter
+    exact hx_filter.2 hx
   }
   have hnegn4 : ¬(∃ g ∈ n4, ∃ s ∈ g, ∃ h ∈ n4,
       (∃ w ∉ s, ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨
       ¬ (∃ t ∈ h, bcompatible s t)) := by {
+    intro hcontra
+    rw [hn4] at hcontra
+    obtain ⟨ g,hg,s,hs,h,hh,hpos⟩ := hcontra
+    rw [hn4_pre] at hg hh
+    simp only [List.mem_map] at hg hh
+    obtain ⟨ g_orig,hg_orig,hg⟩ := hg
+    obtain ⟨ h_orig,hh_orig,hh⟩ := hh
+    rw [← hg] at hs
+    simp only [List.mem_map] at hs
+    obtain ⟨s_orig,hs_orig,hs⟩ := hs
+    rw [List.mem_filter] at hs_orig
+    obtain ⟨hs_orig,hcomp_s_orig⟩ := hs_orig
+    rw [← hs] at hpos
+    cases' hpos with hpos1 hpos2
+    obtain⟨w,hw,hfor⟩ := hpos1
+    have hw_neq : w ≠ (false,index_s1) := by {
+      intro hwe
+      rw [hwe] at hw
+      have hw_true := hindex_s1_true
+      apply hw
+      simp
+      rw [or_and_not]
+      right
+      have h_false_true := h_false_index g_orig (by right; exact hg_orig) h_orig (by right;exact hh_orig) s_orig hs_orig hcomp_s_orig
+      apply h_false_true
+      --goal is ∀ v ∈ h_orig, ¬bcompatible (s1 ++ List.filter (fun x ↦ decide (x ∉ s1)) s_orig) v = true
+    }
+
     sorry
   }
   have hexn4 : ∀ g ∈ n4,∀ s ∈ g, ∃ no, (true, no) ∈ s ∧
