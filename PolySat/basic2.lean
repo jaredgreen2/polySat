@@ -1433,6 +1433,28 @@ theorem bcompatible_union : ∀ s t u : List (Bool × normalizable α pred), bco
   exact hy
   exact hxy
 
+theorem bcompatible_union_left : ∀ s t u : List (Bool × normalizable α pred), bcompatible (t ++ u.filter (fun x => x ∉ t)) s  -> bcompatible t s ∧ bcompatible u s :=
+  by
+  intro s t u
+  unfold bcompatible
+  simp only [beq_iff_eq, dite_eq_ite, Bool.if_true_right, List.all_eq_true,
+    Bool.or_eq_true, Bool.not_eq_true', decide_eq_false_iff_not, decide_eq_true_eq,
+     or_true, implies_true, Bool.false_eq_true, or_false, true_and,
+    Bool.true_eq_false, and_true, decide_not, List.all_append, List.all_filter, Bool.decide_and,
+    ite_not, Bool.if_true_left, Bool.and_eq_true]
+  intro hstu
+  constructor
+  exact hstu.1
+  intro x hx y hy
+  cases' Classical.em (x ∈ t) with hxp hxn
+  apply hstu.1
+  exact hxp
+  exact hy
+  apply hstu.2
+  exact hx
+  exact hxn
+  exact hy
+
 theorem filter_disjoint : ∀ l m: List α,List.Disjoint l (m.filter (fun x => x ∉ l)) :=
   by
   intro l m
@@ -2629,6 +2651,15 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     have hcontra := hcompatible_entries w hw hcompatu
     contradiction
   }
+  have h_compat3n : ∀ b ∈ (g1 :: n1), ∀ c ∈ (g1 :: n1), ∀ u ∈ b, bcompatible s1 u ->
+     ∃ t ∈ c, bcompatible s1 t ∧ bcompatible u t := by {
+    intro b hb c hc t ht hcompat
+    have h_not_in_t := (h_compat_equiv b hb t ht).1 hcompat
+    have h_compat3 := (hneg b hb t ht c hc).1 (false, index_s1) h_not_in_t
+    obtain ⟨t3,ht3,hcompat3,h_not_in_t3⟩ := h_compat3
+    have hcompat13 := (h_compat_equiv c hc t3 ht3).2 h_not_in_t3
+    use t3
+  }
   have h_false_index : ∀ b ∈ (g1 :: n1),∀ c ∈ (g1 :: n1), ∀ u ∈ b,
     bcompatible s1 u -> (∀ v ∈ c, ¬ bcompatible (s1 ++ u.filter (fun x => x ∉ s1)) v) ->
     (false, index_s1) ∈ u := by {
@@ -2716,38 +2747,72 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     simp at hx_filter
     exact hx_filter.2 hx
   }
+  have h_cross : ∀ g ∈ ( n1) ,∀ h ∈ ( n1), ∀ s ∈ g, ∀ w : Bool × normalizable α pred,
+      (∀ t ∈ h, bcompatible (s1 ++ s.filter (fun x => x ∉ s1)) t -> w ∈ t) -> (w ∈ s1 ∨ w ∈ s) := by {
+      intro ho hho go hgo t ht' w ht
+      let h := List.map (fun y ↦ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) y) (List.filter (fun y ↦ bcompatible s1 y) ho)
+      let g := List.map (fun y ↦ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) y) (List.filter (fun y ↦ bcompatible s1 y) go)
+
+      --the rest is similar to htc below
+      sorry
+    }
   have hnegn4 : ¬(∃ g ∈ n4, ∃ s ∈ g, ∃ h ∈ n4,
       (∃ w ∉ s, ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨
       ¬ (∃ t ∈ h, bcompatible s t)) := by {
-    intro hcontra
-    rw [hn4] at hcontra
-    obtain ⟨ g,hg,s,hs,h,hh,hpos⟩ := hcontra
-    rw [hn4_pre] at hg hh
-    simp only [List.mem_map] at hg hh
-    obtain ⟨ g_orig,hg_orig,hg⟩ := hg
-    obtain ⟨ h_orig,hh_orig,hh⟩ := hh
-    rw [← hg] at hs
-    simp only [List.mem_map] at hs
-    obtain ⟨s_orig,hs_orig,hs⟩ := hs
-    rw [List.mem_filter] at hs_orig
-    obtain ⟨hs_orig,hcomp_s_orig⟩ := hs_orig
-    rw [← hs] at hpos
-    cases' hpos with hpos1 hpos2
-    obtain⟨w,hw,hfor⟩ := hpos1
-    have hw_neq : w ≠ (false,index_s1) := by {
-      intro hwe
-      rw [hwe] at hw
-      have hw_true := hindex_s1_true
-      apply hw
-      simp
-      rw [or_and_not]
-      right
-      have h_false_true := h_false_index g_orig (by right; exact hg_orig) h_orig (by right;exact hh_orig) s_orig hs_orig hcomp_s_orig
-      apply h_false_true
-      --goal is ∀ v ∈ h_orig, ¬bcompatible (s1 ++ List.filter (fun x ↦ decide (x ∉ s1)) s_orig) v = true
+    push_neg
+    rw [hn4]
+    rw [hn4_pre]
+    intro g hg s hs h hh
+    rw [List.mem_map] at hh
+    obtain ⟨ ho, hho,hhe⟩ := hh
+    rw [List.mem_map] at hg
+    obtain ⟨ go,hgo,hge⟩ := hg
+    rw [← hge] at hs
+    rw [List.mem_map] at hs
+    obtain ⟨so,hso,hse⟩ := hs
+    rw [List.mem_filter] at hso
+    obtain ⟨ hso,hhso⟩ := hso
+    constructor
+    intro w
+    contrapose!
+    intro ht
+    rw [← hse] at ht
+    have htc : ∀ t ∈ ho, bcompatible (s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) so) t = true → w ∈ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) t := by {
+      rw [← hhe] at ht
+      rw [List.forall_mem_map] at ht
+      rw [List.forall_mem_filter] at ht
+      intro t ht' hst
+      have hst2 := hst
+      apply bcompatible_union_left at hst
+      rw [bcompatible_symm] at hst2
+      obtain ⟨ hst1,hst12⟩ := hst
+      rw [bcompatible_symm] at hst1
+      rw [bcompatible_symm] at hst12
+      have hst21 := bcompatible_union s1 t so hhso hst12
+      rw [bcompatible_symm] at hst21
+      have htt := hcoh g1 (by simp) s1 hs11
+      have hst22 := bcompatible_union s1 t s1 (bcompatible_self s1 htt) hst1
+      rw [bcompatible_symm] at hst22
+      have hst23 := bcompatible_union s1 so (s1 ++ List.filter (fun x ↦ decide (x ∉ s1)) t) hst22 hst21
+      rw [bcompatible_symm] at hst1
+      have hto := ht t ht' hst1 hst23
+      exact hto
     }
+    rw [← hse]
+    simp
+    rw [or_and_not]
+    cases' Classical.em (w ∈ s1) with hwp hwn
+    left
+    exact hwp
+    apply (h_cross go hgo ho hho so hso)
+    intro tor hto hts
+    have htd := (htc tor hto hts)
+    simp at htd
+    cases' htd with htdl htdr
+    contradiction
+    exact htdr.1
 
-    sorry
+
   }
   have hexn4 : ∀ g ∈ n4,∀ s ∈ g, ∃ no, (true, no) ∈ s ∧
               ∀ t ∈ g, t ≠ s -> (false, no) ∈ t := by {
