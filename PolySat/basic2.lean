@@ -1455,6 +1455,15 @@ theorem bcompatible_union_left : ∀ s t u : List (Bool × normalizable α pred)
   exact hxn
   exact hy
 
+theorem bcompatible_union_equiv ( s t u : List (Bool × normalizable α pred)) : bcompatible (t ++ u.filter (fun x => x ∉ t)) s <-> bcompatible t s ∧ bcompatible u s :=
+  by
+  constructor
+  apply bcompatible_union_left
+  intro ha
+  apply bcompatible_union
+  exact ha.1
+  exact ha.2
+
 theorem filter_disjoint : ∀ l m: List α,List.Disjoint l (m.filter (fun x => x ∉ l)) :=
   by
   intro l m
@@ -2678,25 +2687,63 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
   have hn4_pre : n4_pre = (n1.map (fun x => (x.filter (fun y => bcompatible s1 y)).map (fun y => s1 ++ y.filter (fun z => z ∉ s1)))) := by {
     dsimp
   }
-  let n4 := n4_pre
-  have hn4 : n4 = n4_pre := by {
+  let n4 := (n4_pre.map (fun t =>
+  (t.filter (fun w => n4_pre.all (fun u => u.any (fun v => bcompatible v w)))))).map (fun t => t.map
+  (fun r => ((n4_pre.map
+  (fun p => (p.filter (fun v => bcompatible v r)))).map
+  (fun w => interl (w.filter (fun v => bcompatible v r)))).foldr
+  (fun u v => u ++ v.filter (fun x => x ∉ u)) r))
+  have hn4 : n4 = (n4_pre.map (fun t =>
+  (t.filter (fun w => n4_pre.all (fun u => u.any (fun v => bcompatible v w)))))).map (fun t => t.map
+  (fun r => ((n4_pre.map
+  (fun p => (p.filter (fun v => bcompatible v r)))).map
+  (fun w => interl (w.filter (fun v => bcompatible v r)))).foldr
+  (fun u v => u ++ v.filter (fun x => x ∉ u)) r)) := by {
     dsimp
+  }
+  have hfe : n4_pre.map (fun t => t.filter (fun w => n4_pre.all (fun u => u.any (fun v => bcompatible v w)))) = n4_pre := by {
+    rw [hn4_pre]
+    simp only [ List.all_map, List.map_map, List.map_inj_left, Function.comp_apply,
+      List.filter_eq_self, List.mem_map, List.mem_filter, List.all_eq_true, List.any_map,
+      List.any_filter, List.any_eq_true, Bool.and_eq_true, forall_exists_index, and_imp]
+    intro g hg s t ht hst hsu h hh
+    have hcompats := h_compat3n g (by right; exact hg) h (by right; exact hh) t ht hst
+    obtain ⟨ u,hu, hcompats1,hcompats2⟩ := hcompats
+    use u
+    constructor
+    exact hu
+    constructor
+    exact hcompats1
+    rw [← hsu]
+    rw [bcompatible_symm] at hst
+    have hc1 := bcompatible_union s1 t s1 (bcompatible_self s1 (hcoh g1 (by simp) s1 hs11)) hst
+    rw [bcompatible_symm] at hc1
+    have hcompats := bcompatible_union s1 t u  hcompats1 hcompats2
+    rw [bcompatible_symm] at hcompats
+    exact bcompatible_union s1 u (s1 ++ List.filter (fun x ↦ decide (x ∉ s1)) t) hc1 hcompats
   }
   have h_n4_coherent : coherent n4 := by {
     unfold coherent
     intro g hg s hs
     rw [hn4] at hg
+    rw [hfe] at hg
     rw [hn4_pre] at hg
     simp only [List.mem_map] at hg
     obtain ⟨ x,hx,rfl⟩ := hg
     simp only [List.mem_map] at hs
     obtain ⟨ y,hy,hhy⟩ := hs
-    rw [List.mem_filter] at hy
-    obtain ⟨ hy_orig, hcompat_y⟩ := hy
-    have hcoh_s1 := hcoh g1 (by simp) s1 hs11
-    have hcoh_y := hcoh x (by right;exact hx) y hy_orig
-    rw [← s_nodup] at hcoh_s1 hcoh_y
     rw [← hhy]
+    apply nodup_fold2
+    obtain ⟨ xo,hxo,hhxo⟩ := hx
+    rw [← hhxo] at hy
+    simp only [List.mem_map] at hy
+    obtain ⟨yo,hyo,hhyo⟩ := hy
+    rw [List.mem_filter] at hyo
+    obtain ⟨ hy_orig, hcompat_y⟩ := hyo
+    have hcoh_s1 := hcoh g1 (by simp) s1 hs11
+    have hcoh_y := hcoh xo (by right;exact hxo) yo hy_orig
+    rw [← s_nodup] at hcoh_s1 hcoh_y
+    rw [← hhyo]
     rw [← s_nodup]
     constructor
     simp only [decide_not, List.mem_append, List.mem_filter, Bool.not_eq_true',
@@ -2746,21 +2793,37 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     intro x hx hx_filter
     simp at hx_filter
     exact hx_filter.2 hx
-  }
-  have h_cross : ∀ g ∈ ( n1) ,∀ h ∈ ( n1), ∀ s ∈ g, ∀ w : Bool × normalizable α pred,
-      (∀ t ∈ h, bcompatible (s1 ++ s.filter (fun x => x ∉ s1)) t -> w ∈ t) -> (w ∈ s1 ∨ w ∈ s) := by {
-      intro ho hho go hgo t ht' w ht
-      let h := List.map (fun y ↦ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) y) (List.filter (fun y ↦ bcompatible s1 y) ho)
-      let g := List.map (fun y ↦ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) y) (List.filter (fun y ↦ bcompatible s1 y) go)
+    intro x' hx'
+    simp only [List.map_map] at hx'
+    rw [List.mem_map] at hx'
+    obtain ⟨ xo,hxo,hhxo⟩ := hx'
+    rw [← hhxo]
 
-      --the rest is similar to htc below
-      sorry
-    }
+    sorry
+    intro x' hx'
+    simp only [List.map_map] at hx'
+    rw [List.mem_map] at hx'
+    obtain ⟨ xo,hxo,hhxo⟩ := hx'
+    rw [← hhxo]
+
+    sorry
+    intro x' hx' y' hy'
+    simp only [List.map_map] at hx'
+    rw [List.mem_map] at hx'
+    obtain ⟨ xo,hxo,hhxo⟩ := hx'
+    rw [← hhxo]
+    simp only [List.map_map] at hy'
+    rw [List.mem_map] at hy'
+    obtain ⟨ yo,hyo,hhyo⟩ := hy'
+    rw [← hhyo]
+
+  }
   have hnegn4 : ¬(∃ g ∈ n4, ∃ s ∈ g, ∃ h ∈ n4,
       (∃ w ∉ s, ∀ t ∈ h, bcompatible s t -> w ∈ t) ∨
       ¬ (∃ t ∈ h, bcompatible s t)) := by {
     push_neg
     rw [hn4]
+    rw [hfe]
     rw [hn4_pre]
     intro g hg s hs h hh
     rw [List.mem_map] at hh
@@ -2770,47 +2833,6 @@ theorem c3 : ∀ n : List (List (List (Bool × normalizable α pred))),
     rw [← hge] at hs
     rw [List.mem_map] at hs
     obtain ⟨so,hso,hse⟩ := hs
-    rw [List.mem_filter] at hso
-    obtain ⟨ hso,hhso⟩ := hso
-    constructor
-    intro w
-    contrapose!
-    intro ht
-    rw [← hse] at ht
-    have htc : ∀ t ∈ ho, bcompatible (s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) so) t = true → w ∈ s1 ++ List.filter (fun z ↦ decide (z ∉ s1)) t := by {
-      rw [← hhe] at ht
-      rw [List.forall_mem_map] at ht
-      rw [List.forall_mem_filter] at ht
-      intro t ht' hst
-      have hst2 := hst
-      apply bcompatible_union_left at hst
-      rw [bcompatible_symm] at hst2
-      obtain ⟨ hst1,hst12⟩ := hst
-      rw [bcompatible_symm] at hst1
-      rw [bcompatible_symm] at hst12
-      have hst21 := bcompatible_union s1 t so hhso hst12
-      rw [bcompatible_symm] at hst21
-      have htt := hcoh g1 (by simp) s1 hs11
-      have hst22 := bcompatible_union s1 t s1 (bcompatible_self s1 htt) hst1
-      rw [bcompatible_symm] at hst22
-      have hst23 := bcompatible_union s1 so (s1 ++ List.filter (fun x ↦ decide (x ∉ s1)) t) hst22 hst21
-      rw [bcompatible_symm] at hst1
-      have hto := ht t ht' hst1 hst23
-      exact hto
-    }
-    rw [← hse]
-    simp
-    rw [or_and_not]
-    cases' Classical.em (w ∈ s1) with hwp hwn
-    left
-    exact hwp
-    apply (h_cross go hgo ho hho so hso)
-    intro tor hto hts
-    have htd := (htc tor hto hts)
-    simp at htd
-    cases' htd with htdl htdr
-    contradiction
-    exact htdr.1
 
 
   }
