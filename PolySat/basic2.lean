@@ -2295,7 +2295,18 @@ partial def resolutioni (n : List (List (List (Bool × normalizable α pred))))(
 partial def resolution (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   let m := addcaluses n;
   let l := m.length;
-  (List.range l).foldr (fun o x => resolutioni l x o) m
+  (List.range l).foldr ((fun o x => resolutioni l x (o ++ ((x.sublistsLen 2).attach.filter
+  (fun y => ∃! s t, s ∈ y.1.get ⟨ 0,(by aesop)⟩ ∧
+   t ∈ y.1.get ⟨ 1,(by aesop)⟩ ∧
+   ! bcompatible s t)).map
+   (fun y => let y1 := y.1.get ⟨ 0,(by aesop)⟩;
+   let y2 := y.1.get ⟨ 1,(by aesop)⟩ ;
+   y1.filter (y2.all (fun z => bcompatible y1 z)) ++
+   y2.filter (y1.all (fun z => bcompatible y2 z)) ))
+   (resolutioni l a (clean n))).pwfilter
+   (fun x y => Multiset.ofList (x.map
+   (fun z => Multiset.ofList z)) = Multiset.ofList
+   (y.map (fun z => Multiset.ofList z)))) m
 
 theorem clean_equiv : ∀ n : List (List (List (Bool × normalizable α pred))), nToProp n <-> nToProp ( (clean n (order n))) :=
   by
