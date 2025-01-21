@@ -2278,7 +2278,7 @@ partial def resolutioni (n : List (List (List (Bool × normalizable α pred))))(
   |0 => take l (clean n)
   |a + 1 => if take l n = take l (clean n) ∨ [] ∈ clean n
   then n
-  else resolutioni l i (fun x => x ++ ((x.sublistsLen 2).attach.filter
+  else (resolutioni l i (fun x => x ++ ((x.sublistsLen 2).attach.filter
   (fun y => ∃! s t, s ∈ y.1.get ⟨ 0,(by aesop)⟩ ∧
    t ∈ y.1.get ⟨ 1,(by aesop)⟩ ∧
    ! bcompatible s t)).map
@@ -2286,7 +2286,7 @@ partial def resolutioni (n : List (List (List (Bool × normalizable α pred))))(
    let y2 := y.1.get ⟨ 1,(by aesop)⟩ ;
    y1.filter (y2.all (fun z => bcompatible y1 z)) ++
    y2.filter (y1.all (fun z => bcompatible y2 z)) ))
-   (resolutioni l a (clean n))
+   (resolutioni l a (clean n))).eraseDup
 
 partial def resolution (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   let m := addcaluses n;
