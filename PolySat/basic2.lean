@@ -13,6 +13,7 @@ import Mathlib.Logic.Basic
 import Batteries.Data.List.Lemmas
 import Batteries.Data.List.Basic
 import Mathlib.Data.Lists.Sublists
+import Mathlib.Data.Multiset.Basic
 --import Mathlib.Algebra.BigOperators.Group.List.Basic
 import Aesop
 open Classical
@@ -2286,7 +2287,10 @@ partial def resolutioni (n : List (List (List (Bool × normalizable α pred))))(
    let y2 := y.1.get ⟨ 1,(by aesop)⟩ ;
    y1.filter (y2.all (fun z => bcompatible y1 z)) ++
    y2.filter (y1.all (fun z => bcompatible y2 z)) ))
-   (resolutioni l a (clean n))).eraseDup
+   (resolutioni l a (clean n))).pwfilter
+   (fun x y => Multiset.ofList (x.map
+   (fun z => Multiset.ofList z)) = Multiset.ofList
+   (y.map (fun z => Multiset.ofList z)))
 
 partial def resolution (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   let m := addcaluses n;
