@@ -2295,7 +2295,7 @@ partial def resolutioni (n : List (List (List (Bool × normalizable α pred))))(
 partial def resolution (n : List (List (List (Bool × normalizable α pred)))) : List (List (List (Bool × normalizable α pred))) :=
   let m := addcaluses n;
   let l := m.length;
-  resolutioni l l m
+  (List.range l).foldr (fun o x => resolutioni l x o) m
 
 theorem clean_equiv : ∀ n : List (List (List (Bool × normalizable α pred))), nToProp n <-> nToProp ( (clean n (order n))) :=
   by
