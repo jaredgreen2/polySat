@@ -28,7 +28,8 @@ def IList.ofList (l: {l : List α // l ≠ []}) : IList α :=
   | ⟨ x :: xs@(y :: ys),h⟩ => .cons x ( IList.ofList ⟨ xs, fun h => by
   rename_i h_1 h_2
   subst h_1
-  simp_all only [namedPattern, ne_eq, List.cons_ne_self, not_false_eq_true] ⟩ )
+  simp_all only [namedPattern, ne_eq, List.cons_ne_self, not_false_eq_true]
+  contradiction ⟩ )
 
 instance : Coe (IList α) {l : List α // l ≠ []} where
   coe l := IList.toList l
